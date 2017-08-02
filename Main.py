@@ -236,8 +236,8 @@ def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings):
 # DISPLAYS A "MAP" OF SYSTEM
 def mapDisplay(FocusBody, BasicFont, siblings):
 	# COMPILE LIST OF TEXTS TO DISPLAY AND THEIR SPACE NEEDED TO DISPLAY
-	l2pix = 10 #letter 2 pixel
-	offset = 25
+	l2pix = 5 #letter 2 pixel
+	offset = 5
 	LOWKEYCOLOR = clrs["GRAY"]
 	topTexts = []
 	topX = []
@@ -288,15 +288,15 @@ def mapDisplay(FocusBody, BasicFont, siblings):
 		DISPLAYSURF.blit(text, textrect)
 
 	# DISPLAY MIDDLE
-	X = SURF_WIDTH/2 - (sum(midX)+offset*(len(midX)-2))/2
+	X = SURF_WIDTH/2 - sum(midX)
 	if len(midTexts) > 1:
 		for x in range(0,len(midTexts)):
 			text = midTexts[x]
 			textrect = midTexts[x].get_rect()
-			textrect.centerx = X + offset
+			textrect.centerx = X + offset + midX[x]
 			textrect.centery = midY
 			DISPLAYSURF.blit(text, textrect)
-			X += midX[x] + offset
+			X += midX[x] + offset + midX[x]
 	else:
 		text = midTexts[0]
 		textrect = text.get_rect()
@@ -305,15 +305,15 @@ def mapDisplay(FocusBody, BasicFont, siblings):
 		DISPLAYSURF.blit(text, textrect)
 
 	# DISPLAY LOWER LEVEL
-	X = SURF_WIDTH/2 - (sum(lowX)+offset*(len(lowX)-2))/2
+	X = SURF_WIDTH/2 - sum(lowX)
 	if len(lowTexts) > 1:
 		for x in range(0,len(lowTexts)):
 			text = lowTexts[x]
 			textrect = lowTexts[x].get_rect()
-			textrect.centerx = X + offset
+			textrect.centerx = X + offset + lowX[x]
 			textrect.centery = lowY
 			DISPLAYSURF.blit(text, textrect)
-			X += lowX[x] + offset
+			X += lowX[x] + offset + lowX[x]
 	elif len(lowTexts) > 0:
 		text = lowTexts[0]
 		textrect = text.get_rect()
@@ -379,7 +379,7 @@ def display(self, KM2PIX, Focus, SOI):
 	if CheckXAxis and CheckYAxis:
 		pygame.draw.circle(DISPLAYSURF, self.Color, (int(MiddlePoint[0] + SURF_WIDTH/2),int(SURF_HEIGHT/2 - MiddlePoint[1])), int(KM2PIX*(self.Diameter.round()/2)), 0)
 		
-		if SOI and self.SOI != None and self.SOI*KM2PIX > 1:
+		if SOI and self.SOI != None and self.SOI*KM2PIX > 1 and self.SOI*KM2PIX < SURF_WIDTH:
 			pygame.draw.circle(DISPLAYSURF, FONT_COLOR, (int(MiddlePoint[0] + SURF_WIDTH/2),int(SURF_HEIGHT/2 - MiddlePoint[1])), int(self.SOI*KM2PIX), 1)
 
 
