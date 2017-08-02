@@ -32,6 +32,10 @@ class Body(object):
     def addChild(self, Child):
         self.Children.append(Child)
 
+    # REMOVERS
+    def removeChild(self, Child):
+        del self.Children[Child]
+
 
     # GETTERS
     def getChildren(self):

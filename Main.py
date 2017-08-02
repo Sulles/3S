@@ -34,6 +34,11 @@ def main():
 	DISPLAYSURF = pygame.display.set_mode((SURF_WIDTH, SURF_HEIGHT))
 	pygame.display.set_caption('Solar System Simulator')
 
+	# SETTING UP FONT
+	filename = 'Cubellan.ttf'
+	path = resource_path(os.path.join('resources/fonts/', filename))
+	BasicFont = pygame.font.Font(path, 12)
+
 	# INITIALIZE ALL BODIES
 	initialize_bodies()
 	
@@ -100,7 +105,7 @@ def main():
 							PREV_MAP_INDEX = []
 						else:
 							siblings = [FocusBody.getParent()] + FocusBody.getParent().getChildren()
-							PREV_MAP_INDEX.pop()
+							del PREV_MAP_INDEX[-1]
 				# KEY DOWN
 				elif event.key == K_DOWN:
 					if len(FocusBody.getChildren()) > 0:
@@ -124,7 +129,6 @@ def main():
 				elif event.key == K_LEFT:
 					MAP_INDEX = (MAP_INDEX-1)%len(siblings)
 					FocusBody = siblings[MAP_INDEX]
-
 
 
 		### RUNNING PHYSICS ENGINE ###
@@ -154,7 +158,7 @@ def main():
 		
 		else:
 			PhysicsEngine(TIME_SCALAR)
-		
+
 		
 		# FOCUS ON...
 		Focus = FocusBody.Position
@@ -163,13 +167,12 @@ def main():
 		DISPLAYSURF.fill(BGCOLOR)
 		Renderer(KM2PIX[0], Focus, SOI)
 		Sim_Speed = TIME_SCALAR*GOD_LOOP*(FPS+2-BASIC_LOOP) if ACTUAL_SCALAR == 0 else ACTUAL_SCALAR*GOD_LOOP*(FPS+2-BASIC_LOOP)
-		GUI(Sim_Speed, FocusBody, KM2PIX[0], FPSCLOCK, START_UPS_TIC, siblings)
+		GUI(Sim_Speed, FocusBody, KM2PIX[0], FPSCLOCK, START_UPS_TIC, siblings, BasicFont)
 		pygame.display.update()
 		
 		# IF NOT GOING THROUGH THE LINEAR SCALE, STICK TO 60 FPS LIMIT
 		if ACTUAL_SCALAR == TIME_SCALAR or ACTUAL_SCALAR == 0:
 			FPSCLOCK.tick(FPS)
-
 
 
 # ==================================================
@@ -178,10 +181,7 @@ def main():
 #   - Displaying list of bodies in system
 #   - Displaying current focus point
 #   - Displaying TIME_SCALAR
-def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings):
-	# SETTING UP FONT
-	path = os.path.abspath('resources/fonts/Cubellan.ttf')
-	BasicFont = pygame.font.Font(path, 12)
+def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings, BasicFont):
 
 	### INFORMATION GUI TOP LEFT ###
 	# BACKGROUND
@@ -220,7 +220,7 @@ def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings):
 
 	# RETICLE
 	radius = int((FocusBody.Diameter.round()*KM2PIX/2) + 5)
-	pygame.draw.circle(DISPLAYSURF, FONT_COLOR, (int(round(SURF_WIDTH/2)), int(round(SURF_HEIGHT/2))), int(radius), 1)
+	pygame.draw.circle(DISPLAYSURF, FONT_COLOR, (int(SURF_WIDTH/2), int(SURF_HEIGHT/2)), int(radius), 1)
 	pygame.draw.polygon(DISPLAYSURF, FONT_COLOR, ((int(SURF_WIDTH/2) - 3, int(SURF_HEIGHT/2) - radius), (int(SURF_WIDTH/2), int(SURF_HEIGHT/2) - radius - 5), (int(SURF_WIDTH/2) + 3, int(SURF_HEIGHT/2) - radius)), 1)
 	temp = FocusBody.Name
 	text = BasicFont.render(temp, True, FONT_COLOR)
@@ -229,8 +229,85 @@ def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings):
 	textrect.centery = round(SURF_HEIGHT/2) - radius - 12
 	DISPLAYSURF.blit(text, textrect)
 
-	# MAP
+	# MAP DISPLAY
 	mapDisplay(FocusBody, BasicFont, siblings)
+
+
+# ==================================================
+# RENDERER
+# Handles:
+#   - Iterating through all Stars, Planets, Moons and Calling Display Function
+#   - Zoom
+#   - Conversion of km to pixels
+def Renderer(KM2PIX, Focus, SOI):
+
+	for body in ALL_BODIES:
+		display(body, KM2PIX, Focus, SOI)
+
+
+# ==================================================
+# PHYSICS ENGINE
+# Handles:
+#   - Updating Velocity and Position of All Stars, Planets, Moons
+def PhysicsEngine(TIME_SCALAR):
+
+	for bodyA in ALL_BODIES:
+
+		# ONLY CALCULATE IF :
+		#   - IT ORBITS PARENT
+		#   - bodyB IS A STAR
+		#   GOT RID OF -> IS ON SAME LEVEL AS OTHER CHILDREN <- REQUIREMENT, IS USELESS AND SOI PROVES IT
+		for bodyB in ALL_BODIES:
+			if bodyB != bodyA and (bodyB in ALL_BODIES.getRoots() or bodyB == bodyA.Parent):
+				DistanceArray = bodyB.Position - bodyA.Position
+				Distance = np.linalg.norm(bodyB.Position - bodyA.Position)
+				angle = math.atan(DistanceArray[1]/DistanceArray[0])
+				GForce = TIME_SCALAR*G*bodyB.Mass[0]/(Distance*Distance)
+				if bodyA.Position[0] > bodyB.Position[0]:
+					ForceX = -math.cos(angle)*GForce[0]
+					ForceY = -math.sin(angle)*GForce[0]
+				else:
+					ForceX = math.cos(angle)*GForce[0]
+					ForceY = math.sin(angle)*GForce[0]
+
+				bodyA.Velocity = bodyA.Velocity + np.array([ForceX,ForceY])
+
+
+	for body in ALL_BODIES:
+		body.Position = body.Position + TIME_SCALAR*body.Velocity
+
+
+# DISPLAY
+def display(self, KM2PIX, Focus, SOI):
+	MiddlePoint = KM2PIX*(self.Position - Focus)
+	CheckXAxis = -(SURF_WIDTH + self.Diameter*KM2PIX)/2 < MiddlePoint[0] < (SURF_WIDTH + self.Diameter*KM2PIX)/2
+	CheckYAxis = -(SURF_HEIGHT + self.Diameter*KM2PIX)/2 < MiddlePoint[1] < (SURF_HEIGHT + self.Diameter*KM2PIX)/2
+
+	# ENABLING DISSAPPEARING PLANETS
+	# pixelSize = KM2PIX*self.Diameter/2
+	# if CheckXAxis and CheckYAxis and pixelSize > 0.5
+	if CheckXAxis and CheckYAxis:
+		pygame.draw.circle(DISPLAYSURF, self.Color, (int(MiddlePoint[0] + SURF_WIDTH/2),int(SURF_HEIGHT/2 - MiddlePoint[1])), int(KM2PIX*(self.Diameter.round()/2)), 0)
+		
+		if SOI and self.SOI != None and self.SOI*KM2PIX > 1 and self.SOI*KM2PIX < SURF_WIDTH:
+			pygame.draw.circle(DISPLAYSURF, FONT_COLOR, (int(MiddlePoint[0] + SURF_WIDTH/2),int(SURF_HEIGHT/2 - MiddlePoint[1])), int(self.SOI*KM2PIX), 1)
+
+
+ 
+# ==================================================
+# INTIALIZATION METHOD
+# Handles:
+#   - Creating and Defining Stars, Planets, Moons
+#   - Creating Callable lists of Stars, Planets, Moons
+def initialize_bodies():
+	print()
+	print("List of Bodies Created...")
+
+	global ALL_BODIES
+	filename = 'solar.json'
+	path = resource_path(os.path.join('resources/systems/',filename))
+	ALL_BODIES = System(path)
+
 
 
 # DISPLAYS A "MAP" OF SYSTEM
@@ -322,66 +399,11 @@ def mapDisplay(FocusBody, BasicFont, siblings):
 		DISPLAYSURF.blit(text,textrect)
 
 
-
-# ==================================================
-# RENDERER
-# Handles:
-#   - Iterating through all Stars, Planets, Moons and Calling Display Function
-#   - Zoom
-#   - Conversion of km to pixels
-def Renderer(KM2PIX, Focus, SOI):
-
-	for body in ALL_BODIES:
-		display(body, KM2PIX, Focus, SOI)
-
-
-# ==================================================
-# PHYSICS ENGINE
-# Handles:
-#   - Updating Velocity and Position of All Stars, Planets, Moons
-def PhysicsEngine(TIME_SCALAR):
-
-	for bodyA in ALL_BODIES:
-
-		# ONLY CALCULATE IF :
-		#   - IT ORBITS PARENT
-		#   - bodyB IS A STAR
-		#   GOT RID OF -> IS ON SAME LEVEL AS OTHER CHILDREN <- REQUIREMENT, IS USELESS AND SOI PROVES IT
-		for bodyB in ALL_BODIES:
-			if bodyB != bodyA and (bodyB in ALL_BODIES.getRoots() or bodyB == bodyA.Parent):
-				DistanceArray = bodyB.Position - bodyA.Position
-				Distance = np.linalg.norm(bodyB.Position - bodyA.Position)
-				angle = math.atan(DistanceArray[1]/DistanceArray[0])
-				GForce = TIME_SCALAR*G*bodyB.Mass[0]/(Distance*Distance)
-				if bodyA.Position[0] > bodyB.Position[0]:
-					ForceX = -math.cos(angle)*GForce[0]
-					ForceY = -math.sin(angle)*GForce[0]
-				else:
-					ForceX = math.cos(angle)*GForce[0]
-					ForceY = math.sin(angle)*GForce[0]
-
-				bodyA.Velocity = bodyA.Velocity + np.array([ForceX,ForceY])
-
-
-	for body in ALL_BODIES:
-		body.Position = body.Position + TIME_SCALAR*body.Velocity
-
-
-# DISPLAY
-def display(self, KM2PIX, Focus, SOI):
-	MiddlePoint = KM2PIX*(self.Position - Focus)
-	CheckXAxis = -(SURF_WIDTH + self.Diameter*KM2PIX)/2 < MiddlePoint[0] < (SURF_WIDTH + self.Diameter*KM2PIX)/2
-	CheckYAxis = -(SURF_HEIGHT + self.Diameter*KM2PIX)/2 < MiddlePoint[1] < (SURF_HEIGHT + self.Diameter*KM2PIX)/2
-
-	# ENABLING DISSAPPEARING PLANETS
-	# pixelSize = KM2PIX*self.Diameter/2
-	# if CheckXAxis and CheckYAxis and pixelSize > 0.5
-	if CheckXAxis and CheckYAxis:
-		pygame.draw.circle(DISPLAYSURF, self.Color, (int(MiddlePoint[0] + SURF_WIDTH/2),int(SURF_HEIGHT/2 - MiddlePoint[1])), int(KM2PIX*(self.Diameter.round()/2)), 0)
-		
-		if SOI and self.SOI != None and self.SOI*KM2PIX > 1 and self.SOI*KM2PIX < SURF_WIDTH:
-			pygame.draw.circle(DISPLAYSURF, FONT_COLOR, (int(MiddlePoint[0] + SURF_WIDTH/2),int(SURF_HEIGHT/2 - MiddlePoint[1])), int(self.SOI*KM2PIX), 1)
-
+# WRAPPING
+def resource_path(relative):
+	if hasattr(sys, "_MEIPASS"):
+		return os.path.join(sys._MEIPASS, relative)
+	return os.path.join(relative)
 
 # HANDLE ZOOMING
 def zoomIn(KM2PIX):
@@ -398,18 +420,6 @@ def zoomOut(KM2PIX):
 		KM2PIX /= 2
 	return KM2PIX
 
- 
-# ==================================================
-# INTIALIZATION METHOD
-# Handles:
-#   - Creating and Defining Stars, Planets, Moons
-#   - Creating Callable lists of Stars, Planets, Moons
-def initialize_bodies():
-	print()
-	print("List of Bodies Created...")
-
-	global ALL_BODIES
-	ALL_BODIES = System(os.path.abspath('resources/systems/solar.json'))
 
 
 
