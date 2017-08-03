@@ -1,0 +1,195 @@
+{
+	"Sun":{
+		"dia":1.3914e6,
+		"mass":1.989e12,
+		"rad":0,
+		"color":"YELLOW",
+
+		"Mercury":{
+			"dia":"0.3829*EARTH_DIA",
+			"mass":"3.3011*10**5",
+			"rad":"0.45*AU"
+		},
+
+		"Venus":{
+			"dia":"0.9499*EARTH_DIA",
+			"mass":"0.815*EARTH_MASS",
+			"rad":"0.723*AU"
+		},
+
+		"Earth":{
+			"dia":12742,
+			"mass":5.972e6,
+			"rad":"1*AU",
+			"color":"BLUE",
+
+			"Moon":{
+				"dia":3473,
+				"mass":7.342e4,
+				"rad":384400,
+				"color":"LIGHTGRAY"
+			}
+		},
+		
+		"Mars":{
+			"dia":6779,
+			"mass":6.417e5,
+			"rad":"1.521*AU",
+			"color":"RED",
+
+			"Phobos":{
+				"dia":"22.533",
+				"mass":"10.8*10**-3",
+				"rad":"9377"
+			},
+
+			"Deimos":{
+				"dia":"12.24",
+				"mass":"2*10**-3",
+				"rad":"23460"
+			}
+		},
+
+		"Ceres":{
+			"dia":"473*2",
+			"mass":"9.393*10**2",
+			"rad":"2.767*AU",
+			"color":"WHITE"
+		},
+
+		"Jupiter":{
+			"dia":"11.209*EARTH_DIA",
+			"mass":"317.8*EARTH_MASS",
+			"rad":"5.2*AU",
+
+			"Io":{
+				"dia":"3643",
+				"mass":"8.9*10**4",
+				"rad":"421700",
+				"color":"YELLOW"
+			},
+
+
+			"Europa":{
+				"dia":"3122",
+				"mass":"4.8*10**4",
+				"rad":"671034",
+				"color":"BROWN"
+			},
+
+
+			"Ganymede":{
+				"dia":"5262",
+				"mass":"14.8*10**4",
+				"rad":"1070412",
+				"color":"DARKBROWN"
+			},
+
+
+			"Callisto":{
+				"dia":"4821",
+				"mass":"10.8*10**4",
+				"rad":"1882709",
+				"color":"DARKGRAY"
+			}
+		},
+
+		"Saturn":{
+			"dia":"9.44*EARTH_DIA",
+			"mass":"95.159*EARTH_MASS",
+			"rad":"9.5*AU",
+			"color":"PALEYELLOW",
+			
+			"Rhea":{
+				"dia":"763.8",
+				"mass":"2.3065*10**4",
+				"rad":"527108",
+				"color":"WHITE"
+			},
+
+			"Titan":{
+				"dia":"0.404*EARTH_DIA",
+				"mass":"0.0255*EARTH_MASS",
+				"rad":"1225000",
+				"color":"YELLOW"
+			}
+			
+		},
+
+		"Uranus":{
+			"dia":"4*EARTH_DIA",
+			"mass":"14.536*EARTH_MASS",
+			"rad":"19.2*AU",
+			"color":"PALEBLUE",
+
+			"Miranda":{
+				"dia":"471.6",
+				"mass":"6.59*10**1",
+				"rad":"129390",
+				"color":"LIGHTGRAY"
+			},
+
+
+			"Ariel":{
+				"dia":"1157.8",
+				"mass":"1.353*10**3",
+				"rad":"190900",
+				"color":"PALEBLUE"
+			},
+
+
+			"Umbriel":{
+				"dia":"0.092*EARTH_DIA",
+				"mass":"1.172*10**3",
+				"rad":"266000",
+				"color":"DARKGRAY"
+			},
+
+
+			"Titania":{
+				"dia":"0.1235*EARTH_DIA",
+				"mass":"3.527*10**3",
+				"rad":"435910",
+				"color":"LIGHTGRAY"
+			},
+
+
+			"Oberon":{
+				"dia":"0.1194*EARTH_DIA",
+				"mass":"3.014*10**3",
+				"rad":"583520",
+				"color":"LIGHTGRAY"
+			}
+		},
+
+		"Neptune":{
+			"dia":"3.883*EARTH_DIA",
+			"mass":"17.147*EARTH_MASS",
+			"rad":"30*AU",
+			"color":"DARKBLUE",
+			
+			"Triton":{
+				"dia":"0.2122*EARTH_DIA",
+				"mass":"2.14*10**4",
+				"rad":"354759",
+				"vel":"-math.sqrt(G*((17.147*EARTH_MASS)**2)/(354759*(2.14*10**4 + 17.147*EARTH_MASS)))",
+				"color":"GRAY"
+			}
+		},
+
+		"Pluto":{
+			"dia":"0.1868*EARTH_DIA",
+			"mass":"1.303*10**4",
+			"rad":"49.301*AU",
+			"vel":"math.sqrt(G*(SUN_MASS**2)/(39.4*AU*(1.303*10**4 + SUN_MASS)))",
+			"color":"WHITERED",
+			
+			"Charon":{
+				"dia":"606",
+				"mass":"1.586*10**3",
+				"rad":"17536",
+				"color":"WHITERED"
+			}
+		}
+	}
+}
