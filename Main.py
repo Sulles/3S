@@ -35,7 +35,7 @@ def main():
 	FPSCLOCK = pygame.time.Clock()
 	pygame.init()
 	DISPLAYSURF = pygame.display.set_mode((SURF_WIDTH, SURF_HEIGHT))
-	pygame.display.set_caption('Solar System Simulator')
+	pygame.display.set_caption('Simulateur du Systeme Solar')
 
 	# SETTING UP FONT
 	filename = 'Cubellan.ttf'
@@ -197,17 +197,17 @@ def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings, BasicFo
 	pygame.draw.rect(DISPLAYSURF, FONT_COLOR, (4, 4, 132, 66), 1)
 
 	# FOCUSED ON... TEXT
-	temp = 'Focus - %s' %FocusBody.Name
+	temp = 'Focus: %s' %FocusBody.Name
 	FocusText = BasicFont.render(temp, True, FONT_COLOR)
 	DISPLAYSURF.blit(FocusText, (12,12))
 
 	# SIM SPEED TEXT
-	temp = 'SimSpeed %s' %Sim_Speed
+	temp = 'Vitesse Temps: %s' %Sim_Speed
 	SimSpeedText = BasicFont.render(temp, True, FONT_COLOR)
 	DISPLAYSURF.blit(SimSpeedText, (12, 24))
 
 	# KM2PIX TEXT
-	temp = 'Scale: %s' %KM2PIX
+	temp = 'Echelle: %s' %KM2PIX
 	ScaleText = BasicFont.render(temp, True, FONT_COLOR)
 	DISPLAYSURF.blit(ScaleText, (12, 36))
 
@@ -225,15 +225,15 @@ def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings, BasicFo
 
 
 	# INSTRUCTION TEXT (English)
-	Inst1txt = LargerBasicFont.render('Arrow keys to change between objects', True, FONT_COLOR)
+	Inst1txt = LargerBasicFont.render('Utiliser les fleches pour changer entre planetes/lunes/etoiles', True, FONT_COLOR)
 	DISPLAYSURF.blit(Inst1txt, (12, SURF_HEIGHT/6))
-	Inst2txt = LargerBasicFont.render('Zoom In  . (period)', True, FONT_COLOR)
+	Inst2txt = LargerBasicFont.render('Zoomer  . (point)', True, FONT_COLOR)
 	DISPLAYSURF.blit(Inst2txt, (12, SURF_HEIGHT/6 + 20))
-	Inst2_1txt = LargerBasicFont.render('Zoom Out  / (forward slash)', True, FONT_COLOR)
+	Inst2_1txt = LargerBasicFont.render('Dezoomer  / (slash)', True, FONT_COLOR)
 	DISPLAYSURF.blit(Inst2_1txt, (12, SURF_HEIGHT/6 + 40))
-	Inst3txt = LargerBasicFont.render('Speed Up  ] (right bracket)', True, FONT_COLOR)
+	Inst3txt = LargerBasicFont.render('Accelerer  ] (fermer crochet)', True, FONT_COLOR)
 	DISPLAYSURF.blit(Inst3txt, (12, SURF_HEIGHT/6 + 60))
-	Inst4txt = LargerBasicFont.render('Speed Down  [ (left bracsket)', True, FONT_COLOR)
+	Inst4txt = LargerBasicFont.render('Deccelerer  [ (ouvrir crochet)', True, FONT_COLOR)
 	DISPLAYSURF.blit(Inst4txt, (12, SURF_HEIGHT/6 + 80))
 
 

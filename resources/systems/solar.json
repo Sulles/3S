@@ -1,11 +1,11 @@
 {
-	"Sun":{
+	"Soleil":{
 		"dia":1.3914e6,
 		"mass":1.989e12,
 		"rad":0,
 		"color":"YELLOW",
 
-		"Mercury":{
+		"Mercure":{
 			"dia":"0.3829*EARTH_DIA",
 			"mass":"3.3011*10**5",
 			"rad":"0.45*AU"
@@ -17,13 +17,13 @@
 			"rad":"0.723*AU"
 		},
 
-		"Earth":{
+		"Terre":{
 			"dia":12742,
 			"mass":5.972e6,
 			"rad":"1*AU",
 			"color":"BLUE",
 
-			"Moon":{
+			"Lune":{
 				"dia":3473,
 				"mass":7.342e4,
 				"rad":384400,
@@ -94,7 +94,7 @@
 			}
 		},
 
-		"Saturn":{
+		"Saturne":{
 			"dia":"9.44*EARTH_DIA",
 			"mass":"95.159*EARTH_MASS",
 			"rad":"9.5*AU",
@@ -177,7 +177,7 @@
 			}
 		},
 
-		"Pluto":{
+		"Pluton":{
 			"dia":"0.1868*EARTH_DIA",
 			"mass":"1.303*10**4",
 			"rad":"49.301*AU",
