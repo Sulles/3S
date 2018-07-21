@@ -1,8 +1,10 @@
 import numpy as np
+from math import sqrt
+from BackEndData import G
 
 class Body(object):
     # INITIALIZING BODY
-    def __init__(self, name, parent, dia, mass, vel, rad, color):
+    def __init__(self, name, parent, dia, mass, vel, rad, color, isPlayer=False):
 
         print(name)
         self.Name = name
@@ -28,9 +30,30 @@ class Body(object):
             self.SOI = None
 
 
+    ## PLAYER BASED FUNCTIONS
+    # A FEW BASIC DEFAULTS
+    def addPlayerAttribs(self):
+        self.Angle = 180
+        self.dAngle = 0     # change in Angle
+        self.Draw_Angle = 0 # for image drawing
+        self.Thrust = 0
+
+    # ATTACH TO A BODY (OR PLANET)
+    def attachToBody(self, Body):
+        Body.addChild(self)
+        self.Parent = Body
+        # ASSUMING CIRCULAR ORBIT
+        self.Velocity = [0, sqrt(G*(Body.Mass**2)/((self.Position[0] - Body.Position[0] )*(self.Mass + Body.Mass)))+Body.Velocity[1]]
+        #print(self.Velocity[1])
+        #print(Body.Velocity[1])
+
+
+
     # ADDERS
     def addChild(self, Child):
         self.Children.append(Child)
+    def attachImage(self, Image):
+        self.Image = Image
 
     # REMOVERS
     def removeChild(self, Child):
