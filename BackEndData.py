@@ -24,6 +24,7 @@ clrs = dict(
 	BROWN    = (255, 240, 220),
 	DARKBROWN= (200, 190, 170),
 	DARKBLUE = ( 75,  75, 255)
+	BGCOLOR = (0,0,0)
 )
 
 # CONSTANTS
