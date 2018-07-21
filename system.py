@@ -31,12 +31,8 @@ class System():
 				rad = self._formatNumber(tree[key]["rad"])
 				if "color" in tree[key]:
 					color = self._evalExpr(tree[key]["color"])
-
-				### ADD ELIF STATEMENT HERE FOR "IMAGE" OPTION FOR OBJECTS, LIKE CHARACTERS, 
-				# 	WHO DON'T HAVE A ROUND SHAPE & UNIFORM COLOR
-
 				else:
-					color = self._evalExpr("WHITE")
+					color = self._evalExpr("BGCOLOR")
 				if "vel" in tree[key]:
 					vel = [0, self._evalExpr(tree[key]["vel"])+parent.Velocity[1]]
 				elif parent:
