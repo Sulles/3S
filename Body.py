@@ -35,7 +35,6 @@ class Body(object):
     def addPlayerAttribs(self):
         self.Angle = 180
         self.dAngle = 0     # change in Angle
-        self.Draw_Angle = 0 # for image drawing
         self.Thrust = 0
 
     # ATTACH TO A BODY (OR PLANET)
@@ -54,6 +53,12 @@ class Body(object):
         self.Children.append(Child)
     def attachImage(self, Image):
         self.Image = Image
+    def changeAngle(self, angle):
+        self.Angle += angle
+        if (self.Angle > 360): self.Angle -= 360
+        elif (self.Angle < -360): self.Angle += 360
+    def changeThrust(self, thrust):
+        self.Thrust += thrust
 
     # REMOVERS
     def removeChild(self, Child):
