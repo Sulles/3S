@@ -103,8 +103,8 @@ def main():
 
 
 				## MAP / FOCUS KEY INPUT ##
-				# KEY UP            
-				if event.key == K_UP:
+				# KEY W = UP           
+				if event.key == K_w:
 					if FocusBody.getParent():
 						# ZOOM OUT
 						#KM2PIX = zoomOut(KM2PIX)
@@ -122,8 +122,8 @@ def main():
 							if (PREV_MAP_INDEX):
 								del PREV_MAP_INDEX[-1]
 
-				# KEY DOWN
-				elif event.key == K_DOWN:
+				# KEY S = DOWN
+				elif event.key == K_s:
 					if len(FocusBody.getChildren()) > 0:
 						# ZOOM IN
 						#KM2PIX = zoomIn(KM2PIX)
@@ -136,22 +136,43 @@ def main():
 						else:
 							siblings = [FocusBody.getParent()] + FocusBody.getParent().getChildren()
 
-				# KEY RIGHT
-				elif event.key == K_RIGHT:
+				# KEY D = RIGHT
+				elif event.key == K_d:
 					MAP_INDEX = (MAP_INDEX+1)%len(siblings)
 					FocusBody = siblings[MAP_INDEX]
 
-				# KEY LEFT
-				elif event.key == K_LEFT:
+				# KEY A = LEFT
+				elif event.key == K_a:
 					MAP_INDEX = (MAP_INDEX-1)%len(siblings)
 					FocusBody = siblings[MAP_INDEX]
 
 				# CHANGE FOCUS BETWEEN PLAYER AND OBJECTS(PLANETS)
+				# ---------------- NEEDS TO BE FLESHED OUT FOR PROPER GUI DISPLAY
 				elif event.key == K_p:
-					if (FocusBody == siblings[MAP_INDEX]):
+					if (len(siblings) > 0 and FocusBody == siblings[MAP_INDEX]):
 						FocusBody = PLAYER_OBJECTS.getRoots()[0]
 					else:
 						FocusBody = siblings[MAP_INDEX]
+
+				## PLAYER ACTIONS ##
+				# ROTATE LEFT
+				elif event.key == K_RIGHT:
+					PLAYER_OBJECTS.getRoots()[0].changeAngle(-5)
+				# ROTATE RIGHT
+				elif event.key == K_LEFT:
+					PLAYER_OBJECTS.getRoots()[0].changeAngle(5)
+				# ADD THRUST
+				elif event.key == K_UP:
+					PLAYER_OBJECTS.getRoots()[0].changeThrust(0.01)	# THRUST IS IN KM/SS
+					print(PLAYER_OBJECTS.getRoots()[0].Thrust)
+				# DECREASE THRUST
+				elif event.key == K_DOWN:
+					if (PLAYER_OBJECTS.getRoots()[0].Thrust > 0):
+						PLAYER_OBJECTS.getRoots()[0].changeThrust(-0.01)
+					print(PLAYER_OBJECTS.getRoots()[0].Thrust)
+
+
+
 
 
 
@@ -245,16 +266,16 @@ def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings, BasicFo
 
 
 	# INSTRUCTION TEXT (English)
-	Inst1txt = LargerBasicFont.render('Arrow keys to change between objects', True, FONT_COLOR)
-	DISPLAYSURF.blit(Inst1txt, (12, SURF_HEIGHT/6))
-	Inst2txt = LargerBasicFont.render('Zoom In  . (period)', True, FONT_COLOR)
-	DISPLAYSURF.blit(Inst2txt, (12, SURF_HEIGHT/6 + 20))
-	Inst2_1txt = LargerBasicFont.render('Zoom Out  / (forward slash)', True, FONT_COLOR)
-	DISPLAYSURF.blit(Inst2_1txt, (12, SURF_HEIGHT/6 + 40))
-	Inst3txt = LargerBasicFont.render('Speed Up  ] (right bracket)', True, FONT_COLOR)
-	DISPLAYSURF.blit(Inst3txt, (12, SURF_HEIGHT/6 + 60))
-	Inst4txt = LargerBasicFont.render('Speed Down  [ (left bracsket)', True, FONT_COLOR)
-	DISPLAYSURF.blit(Inst4txt, (12, SURF_HEIGHT/6 + 80))
+	instruction_texts = [	'WASD keys to change between objects',
+							'P to zoom directly to player'
+							'Arrow keys to rotate player',
+							'Zoom In  . (period)',
+							'Zoom Out  / (forward slash)',
+							'Speed Up  ] (right bracket)',
+							'Speed Down  [ (left bracsket)']
+	for x in range(0, len(instruction_texts)):
+		txt = LargerBasicFont.render(instruction_texts[x], True, FONT_COLOR)
+		DISPLAYSURF.blit(txt, (11, SURF_HEIGHT/6 + (x*20)))
 
 
 	# RETICLE
@@ -289,6 +310,9 @@ def PhysicsEngine(TIME_SCALAR):
 		#   - bodyB IS A STAR
 		#   GOT RID OF -> IS ON SAME LEVEL AS OTHER CHILDREN <- REQUIREMENT, IS USELESS AND SOI PROVES IT
 		# 	GOT RID OF INCLUDING PLANETS ON NBODY CALCS FOR MOONS AND OTHER PLANETS
+
+		if (bodyA.Name == "Player 1"):
+			print("ERROR... PLAYER NBODY CALC IS HAPPENING TWICE")
 
 		# need to check if player is in this list?
 		for bodyB in ALL_BODIES:
@@ -325,6 +349,9 @@ def PhysicsEngine(TIME_SCALAR):
 			else:
 				ForceX = math.cos(angle)*GForce[0]
 				ForceY = math.sin(angle)*GForce[0]
+
+			ForceX += math.sin(bodyA.Angle*TORAD)*bodyA.Thrust
+			ForceY -= math.cos(bodyA.Angle*TORAD)*bodyA.Thrust
 
 			bodyA.Velocity += np.array([ForceX,ForceY])
 
@@ -380,7 +407,8 @@ def display_Player(self, KM2PIX, Focus):
 	CheckYAxis = -(SURF_HEIGHT + self.Diameter*KM2PIX)/2 < MiddlePoint[1] < (SURF_HEIGHT + self.Diameter*KM2PIX)/2
 
 	if CheckXAxis and CheckYAxis:
-		img = pygame.transform.rotate(self.Image, self.Draw_Angle)
+		draw_angle = self.Angle + 180
+		img = pygame.transform.rotate(self.Image, draw_angle)
 		DISPLAYSURF.blit(img, objectPos2ScreenXY(MiddlePoint))
 
 
