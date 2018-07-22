@@ -1,4 +1,5 @@
-import numpy as np 
+import numpy as np
+from math import pi as PI
 
 # COLOR DICTIONARY
 clrs = dict(
@@ -23,8 +24,8 @@ clrs = dict(
 	DEIMOSCLR= (255, 222, 173),
 	BROWN    = (255, 240, 220),
 	DARKBROWN= (200, 190, 170),
-	DARKBLUE = ( 75,  75, 255)
-	BGCOLOR = (0,0,0)
+	DARKBLUE = ( 75,  75, 255),
+	BGCOLOR  = (  0,   0,	0)
 )
 
 # CONSTANTS
@@ -34,6 +35,7 @@ SURF_HEIGHT = 700
 BGCOLOR = (0,0,0)
 FONT_COLOR = (255,)*3
 GUI_COLOR = clrs["DARKGRAY"]
+TORAD = PI/180
 
 # CONSTANTS
 # 1Exagram = 10^18 Kg
