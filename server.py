@@ -1,0 +1,213 @@
+#!/usr/bin/env python
+import asyncio, json, logging, websockets
+import math, numpy, sys, os, time   # time.sleep(millisecond input)
+from system import *
+from datetime import datetime
+
+logging.basicConfig()
+USERS = set()
+PULSES = []
+PULSES_Client_Index = []
+
+
+# ==================================================
+## MESSAGE PREPARERS
+def users_event():
+    return json.dumps({'type': 'users', 'count': len(USERS)})
+def prep_user_msg(message):
+    return json.dumps({'type': 'message', 'txt': message})
+def prep_body_info(name, dia, pos, vel, e, isCircular, a, b, A, dAdt, parent, color):
+    return json.dumps({'type': 'body',  'Name': name,
+                                        'Diameter': dia,
+                                        'Position': pos,
+                                        'Velocity': vel,
+                                        'e': e,
+                                        'isCircular': isCircular,
+                                        'a': a,
+                                        'b': b,
+                                        'A': A,
+                                        'dAdt': dAdt,
+                                        'Parent': parent,
+                                        'Color': color})
+
+# ==================================================
+## MESSAGE SENDERS
+async def update_user_numbers():
+    if USERS:       # asyncio.wait doesn't accept an empty list
+        message = users_event()
+        await asyncio.wait([user.send(message) for user in USERS])
+async def send_all_users(message):
+    if USERS:
+        message = prep_user_msg(message)
+        await asyncio.wait([user.send(message) for user in USERS])
+async def send_body_info(name, dia, pos, vel, e, isCircular, a, b, A, dAdt, parent, color):
+    if USERS:
+        message = prep_body_info(name, dia, pos, vel, e, isCircular, a, b, A, dAdt, parent, color)
+        await asyncio.wait([user.send(message) for user in USERS])
+async def tell_client(message):
+    if USERS:
+        message = json.dumps({'type': message})
+        await asyncio.wait([user.send(message) for user in USERS])
+async def send_user(user, message):
+    if USERS:
+        message = json.dumps({'type': 'message', 'txt': message})
+        await asyncio.wait([user.send(message)])
+async def send_user_pulse_delay(user, delay):
+    if USERS:
+        message = json.dumps({'type': 'pulse_delay', 'delay': delay})
+        await asyncio.wait([user.send(message)])
+
+# ==================================================
+## CLIENT/SYSTEM REGISTRATION
+async def register(websocket):
+    USERS.add(websocket)
+    await update_user_numbers()
+async def unregister(websocket):
+    USERS.remove(websocket)
+    await update_user_numbers()
+async def main(websocket, path):
+    # register(websocket) sends user_event() to websocket
+    await register(websocket)
+    try:
+        #await websocket.send(state_event())
+        async for message in websocket:
+            data = json.loads(message)
+            if data['action'] == 'space':
+                await send_all_users('Houston, we have a message!')
+            elif data['action'] == 'start_game' and len(USERS) > 1:
+                await startGame()
+            elif data['action'] == 'start_timer':
+                await tell_client('start_timer')
+            elif data['action'] == 'stop_timer':
+                await tell_client('stop_timer')
+            elif data['action'] == 'pulse':
+                time = str(datetime.now().strftime('%H:%M:%S'))
+                addPulse(time, websocket)
+                if (len(PULSES) == len(USERS)):
+                    await checkAndFixOffsets()
+                    PULSES.clear()
+                    PULSES_Client_Index.clear()
+            else:
+                logging.error(
+                    "unsupported event: {}", data)
+    finally:
+        await unregister(websocket)
+
+# ==================================================
+# Pulse Handler
+async def checkAndFixOffsets():
+    maxP = max(PULSES)
+    for x in range(0,len(PULSES)):
+        PULSES[x] -= maxP
+    for x in range(0,len(PULSES)):
+        if (PULSES[x] != 0):
+            msg = "your pulse is off by " + str(abs(PULSES[x]))
+            await send_user(PULSES_Client_Index[x], msg)
+            await send_user_pulse_delay(PULSES_Client_Index[x], abs(PULSES[x]))
+        else:
+            await send_user(PULSES_Client_Index[x], '')
+    print("Max pulse difference among users: " + str(min(PULSES)))
+
+def addPulse(time, websocket):
+    t = int(time[6:8])
+    t += int(time[3:5])*60
+    t += int(time[0:2])*60*60
+    print(t)
+    PULSES.append(t)
+    PULSES_Client_Index.append(websocket)
+
+# ==================================================
+# Start Game handles:
+#   - Creating system
+#   - Sending system info to clients
+#   - Checking consistency of all body properties between clients
+async def startGame():
+    await send_all_users('Game is Beginning, Spawning the Solar System...')
+    initialize_bodies()
+    await send_all_users('Bodies Ceated, Initializing the Ellipse Drive...')
+    spoolEllipseDrive()
+    await sendClientsBodies()
+    await send_all_users('Ellipse Drive Ready!')
+    #await startPulseLoop()
+
+async def sendClientsBodies():
+    for body in ALL_BODIES:
+        name = body.Name; pos = deNumpy(body.Position); vel = deNumpy(body.Velocity); dia = int(body.Diameter); color = body.Color
+        if body.e_ == None:
+            e = None; isCircular = body.CircularOrbit; a = None; b = None; A = None;  dAdt = None; parent = None;
+        elif body.e_ != 0:
+            isCircular = body.CircularOrbit; e = deNumpy(body.e); a = np.linalg.norm(body.a); b = np.linalg.norm(body.b); A = body.A; dAdt = body.dAdt; parent = body.Parent.Name;
+        elif body.e_ == 0:
+            isCircular = body.CircularOrbit; e = 0; a = np.linalg.norm(body.a); b = np.linalg.norm(body.b); A = body.A; dAdt = body.dAdt; parent = body.Parent.Name;
+        else:
+            print(str(body.Name) + " has an exceptional, and unaccounted for e: " + str(body.e))
+        await send_body_info(name, dia, pos, vel, e, isCircular, a, b, A, dAdt, parent, color)
+
+def initialize_bodies():
+    global ALL_BODIES
+    filename = 'solar.json'
+    path = resource_path(os.path.join('resources',filename))
+    ALL_BODIES = System(path)
+    print("System Initialized")
+
+# ==================================================
+# Spooling the Ellipse Drive :
+#   - Run the physics engine a few times and enable position 2 past accumulation
+#   - Calculate dA/dt, necessary for the Ellipse Drive
+def spoolEllipseDrive():
+    # Spool steps times, the larger the number, the better the end results should be...
+    steps  = 100
+    TotalAnalysisTime = 1000            # keep TotalAnalysisTime large to avoid 0 area triangles
+    stepSize = int(TotalAnalysisTime/steps)
+    for x in range(0, TotalAnalysisTime, stepSize):
+        for body in ALL_BODIES:
+            ClassicalPhysicsEngine(body, stepSize)
+            body.addPos2Past()
+    for body in ALL_BODIES:
+        if (body.e_ != None):
+            body.calculateEllipse(TotalAnalysisTime, stepSize)
+        else:
+            print("WARNING: " + str(body.Name) + " WILL NOT PARTICIPATE IN THE ELLIPSE DRIVE")
+    print("Ellipse Drive Spooled")
+
+def ClassicalPhysicsEngine(bodyA, TIME_SCALAR):
+### BODY PHYSICS ENGINE ###
+
+    # ONLY CALCULATE IF OTHER BODY IS ONE OF THE FOLLOWING...
+    #   - PARENT
+    #   - STAR
+    #   - CHILD (ONLY FOR SUN)
+    for bodyB in ALL_BODIES:
+        if bodyB != bodyA and (bodyB == bodyA.Parent or bodyB == ALL_BODIES.getRoots()[0] or (bodyA == ALL_BODIES.getRoots()[0] and bodyB in bodyA.Children)):
+            #print(); print(bodyA.Name)
+            #print(">" + str(bodyB.Name))
+            DistanceArray = bodyB.Position - bodyA.Position
+            Distance = np.linalg.norm(bodyB.Position - bodyA.Position)
+            angle = math.atan(DistanceArray[1]/DistanceArray[0])
+            GForce = G*bodyB.Mass/(Distance*Distance)
+            if bodyA.Position[0] > bodyB.Position[0]:
+                ForceX = -math.cos(angle)*GForce[0]
+                ForceY = -math.sin(angle)*GForce[0]
+            else:
+                ForceX = math.cos(angle)*GForce[0]
+                ForceY = math.sin(angle)*GForce[0]
+            bodyA.Velocity += TIME_SCALAR*np.array([ForceX,ForceY])
+    for body in ALL_BODIES:
+        body.Position += TIME_SCALAR*body.Velocity
+
+
+# WRAPPING
+def resource_path(relative):
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative)
+    return os.path.join(relative)
+
+# MAKING JSON APPROPRIATE
+def deNumpy(vec):
+    #print(vec)
+    return [vec[0], vec[1]]
+
+
+asyncio.get_event_loop().run_until_complete(
+    websockets.serve(main, 'localhost', 6789))
+asyncio.get_event_loop().run_forever()
