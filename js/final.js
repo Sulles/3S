@@ -30,13 +30,15 @@ var Connection = new WebSocket('ws://localhost:6789/');
 // Bodies and Players
 var ALL_BODIES = [];
 var ALL_PLAYERS = [];
-// Game State
+// Game State and Reticle Globals
 var GAME_STATE = null;
+var RETICLE = null;
 // Buttons
 var Buttons = {map: false, engi:false};
 // UI vars
 var center_w = 0; // will be updated in main()
 var center_h = 0; // will be updated in main()
+REFRESH_RATE = 10; 	// in ms
 // Main screen width and height
 screen_w = 1000;
 screen_h = 600;
@@ -44,16 +46,13 @@ screen_h = 600;
 system_screen_w = 450;
 system_screen_h = 450;
 system_screen_h_offset = -50;
-
 // Radians stuff
 ToRad = Math.PI/180;
 ToDeg = 180/Math.PI;
-
-// Misc
+// For Colors
 function array2para(array){
 	return 'rgb(' + array[0] + ',' + array[1] + ',' + array[2] + ')';
 }
-
 // CREATING VECTORS AND THEIR MATH
 vec2d = function(x, y) {
 	this.x = x;
@@ -105,7 +104,14 @@ vec2d.prototype.dist = function(vec) {
 	var ysqr = Math.abs((this.y-vec.y)*(this.y-vec.y));
 	return Math.sqrt(xsqr + ysqr)
 }
-
+// Rotate about a point
+vec2d.prototype.rotateAbout = function(origin, angle) {
+	// https://stackoverflow.com/questions/34372480/rotate-point-about-another-point-in-degrees-python
+	angle *= ToRad;
+	qx = origin.x + Math.cos(angle)*(this.x - origin.x) - Math.sin(angle)*(this.y - origin.y);
+	qy = origin.y + Math.sin(angle)*(this.x - origin.x) + Math.cos(angle)*(this.y - origin.y);
+	return new vec2d(qx, qy);
+}
 
 
 /* =============================================================
@@ -199,7 +205,7 @@ function createUI(ctx) {
 	draw_engi_butt(ctx, false);
 	draw_SystemDrawBoardBackground(ctx);
 }
-
+// UI AND BACKGROUNDS
 function fillBackground(ctx, color) {
 	ctx.fillStyle = color;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -244,11 +250,11 @@ function draw_ui_background(ctx) {
   	ctx.lineTo(point[0], center_h + screen_h/2);
   	ctx.lineTo(center_w + screen_w/2, center_h + screen_h/2);
   	ctx.closePath();
-  	// stroke
   	ctx.stroke();
   	ctx.fillStyle = 'rgb(175, 175, 175)';
   	ctx.fill();
 }
+// BUTTONS
 function draw_map_butt(ctx, active) {
 	var color = 'rgba(0,0,0,0)';
 	if (active) {
@@ -315,6 +321,65 @@ function unactivate_butts(ctx) {
 	draw_map_butt(ctx, false);
 	draw_engi_butt(ctx, false);
 }
+function draw_behind_butts(ctx) {
+	ctx.strokeStyle = 'rgb(175, 175, 175)';
+	offset = 5; //pixels
+	var point = [center_w - screen_w/2, center_h + screen_h/4];
+	ctx.moveTo(point[0], point[1]);
+	ctx.beginPath();
+	ctx.lineTo(point[0] + offset, point[1] + offset);
+	ctx.lineTo(point[0] + 285 + offset, point[1] + 75 - offset);
+	point[0] += 285; point[1] += 75;
+	ctx.lineTo(point[0] + offset, center_h + screen_h/2 - offset);
+	ctx.lineTo(center_w - screen_w/2 + offset, center_h + screen_h/2 - offset);
+	ctx.closePath();
+  	ctx.stroke();
+  	ctx.fillStyle = 'rgb(175, 175, 175)';
+  	ctx.fill();
+}
+
+var Reticle = function(){
+	this.center = new vec2d(0,0);
+	this.radius = 10;
+	this.theta = 0;
+}
+Reticle.prototype.draw = function(ctx) {
+	ctx.beginPath();
+	ctx.rect(center_w - system_screen_w/2, center_h - system_screen_h/2 + system_screen_h_offset, system_screen_w, system_screen_h);
+	ctx.stroke(); ctx.closePath(); ctx.clip();
+
+	var scrnXY = vec2Screen(this.center);
+	var screenXY = new vec2d(scrnXY[0], scrnXY[1]);
+	rotate_ctx(ctx, this.theta);
+	screenXY = screenXY.rotateAbout( new vec2d(0,0), -this.theta);
+	ctx.beginPath();
+	ctx.strokeStyle = 'rgb(255,255,255)';
+	ctx.arc(screenXY.x, screenXY.y, this.radius*Math.sqrt(1.5), 0, 2*Math.PI);
+	ctx.rect(screenXY.x - this.radius, screenXY.y - this.radius, 2*this.radius, 2*this.radius);
+	ctx.stroke();
+	ctx.closePath();
+	unrotate_ctx(ctx, this.theta);
+	//console.log("reticle should be showing...")
+	this.theta += 1/50 * (REFRESH_RATE);
+}
+Reticle.prototype.newFocus = function() {
+	this.center = (GAME_STATE.FocusBody.Position.subVec(GAME_STATE.Focus)).mult(GAME_STATE.KM2PIX);
+	this.radius = (GAME_STATE.FocusBody.Diameter/2)*GAME_STATE.KM2PIX;
+	this.theta = 0;
+}
+
+function rotate_ctx(ctx, deg) {
+	ctx.save();
+	ctx.rotate(deg*ToRad);
+}
+function unrotate_ctx(ctx, deg) {
+	ctx.rotate(-deg*ToRad);
+	ctx.restore();
+}
+
+
+
+// MISCELLANEOUS ON CLICK FUNCTION
 function onClick(event) {
     var pos = new vec2d(event.clientX, event.clientY);
     var coords = "X coords: " + pos.x + ", Y coords: " + pos.y;
@@ -337,34 +402,50 @@ function onClick(event) {
     }
 }
 
-function draw_behind_butts(ctx) {
-	ctx.strokeStyle = 'rgb(175, 175, 175)';
-	offset = 5; //pixels
-	var point = [center_w - screen_w/2, center_h + screen_h/4];
-	ctx.moveTo(point[0], point[1]);
-	ctx.beginPath();
-	ctx.lineTo(point[0] + offset, point[1] + offset);
-	ctx.lineTo(point[0] + 285 + offset, point[1] + 75 - offset);
-	point[0] += 285; point[1] += 75;
-	ctx.lineTo(point[0] + offset, center_h + screen_h/2 - offset);
-	ctx.lineTo(center_w - screen_w/2 + offset, center_h + screen_h/2 - offset);
-	ctx.closePath();
-  	ctx.stroke();
-  	ctx.fillStyle = 'rgb(175, 175, 175)';
-  	ctx.fill();
-}
 
 
 /* =============================================================
 						GAME STATE
 ==============================================================*/
 /* GAME STATE, handles...
-	- Current Focus Object
+	- Current Focus Object Index
 	- Scale/Zoom via KM2PIX
+	- Changing Focus
+	- Generating Focus UI arrays
 */
 GameState = function() {
+	this.FocusBody = null;
 	this.Focus = new vec2d(0,0);
 	this.KM2PIX = 1/100;
+	this.FocusUI_topLevel = [''];
+	this.FocusUI_currentLevel = [''];
+	this.FocusUI_bottomLevel = [''];
+}
+GameState.prototype.changeFocusBody = function(newFocusIndex){
+	this.FocusBody = ALL_BODIES[newFocusIndex];
+	if (this.FocusBody.Parent != null) {
+		this.FocusUI_topLevel = this.FocusBody.Parent.Name;
+		this.FocusUI_currentLevel = [];
+		for (x in this.FocusBody.Parent.Children.length){
+			this.FocusUI_currentLevel.push(this.FocusBody.Parent.Children[x].Name);
+		}
+	}
+	else { 
+		this.FocusUI_topLevel = [''];
+		this.FocusUI_currentLevel = [this.FocusBody.Name];
+	}
+	if (this.FocusBody.Children.length > 0){
+		this.FocusUI_bottomLevel = [];
+		for (x in this.FocusBody.Children){
+			this.FocusUI_bottomLevel.push(this.FocusBody.Children[x].Name);
+		}
+	}
+	else {
+		this.FocusUI_bottomLevel = [''];
+	}
+}
+GameState.prototype.updateFocus = function() {
+	this.Focus = this.FocusBody.Position;
 }
 
 
@@ -407,20 +488,19 @@ Body.prototype.addChild = function(child) {
 	this.Children.push(child);
 }
 
-
+// Adds Body from Server Data
 function addBody(data) {
 	ALL_BODIES.push(new Body(data));
 	if (data.Parent != null){
 		ALL_BODIES[ALL_BODIES.length-1].addParent(data.Parent);
 	}
-	//add parent
 }
 
 
 /* =============================================================
 					BODY AND PLAYER DRAWING 
 ==============================================================*/
-function clearCanvas(ctx) {
+function clear_System_Canvas(ctx) {
 	ctx.fillStyle = 'rgb(0, 0, 0';
 	ctx.fillRect(center_w - system_screen_w/2, center_h - system_screen_h/2 + system_screen_h_offset, system_screen_w,system_screen_h);
 }
@@ -428,7 +508,7 @@ function clearCanvas(ctx) {
 	- Checking if Body is within System Draw Board bounds
 	- Sends info to draw function
 */
-function updateCanvas(ctx) {
+function update_System_Canvas(ctx) {
 	if (ALL_BODIES.length > 0){
 		for (x in ALL_BODIES){
 			// FOCUS AND KM2PIX IS NOT UNIFORM
@@ -474,16 +554,22 @@ function vec2Screen(vec) {
 	- Getting input
 	- Handling input
 	- Clear and Update System Draw Board
+	- Reticle
 */
 function mainLoop() {
 	ctx = document.getElementById('canvas').getContext('2d');
 	//var input = check4Input();
 	//handleInput(input);
-	clearCanvas(ctx);
-	updateCanvas(ctx);
+	clear_System_Canvas(ctx);
+	update_System_Canvas(ctx);
 
-	if (ALL_BODIES.length > 0) {
-		GAME_STATE.Focus = ALL_BODIES[5].Position;
+	if (ALL_BODIES.length > 0 && GAME_STATE.FocusBody == null) {
+		GAME_STATE.changeFocusBody(5);
+		GAME_STATE.updateFocus();
+		RETICLE.newFocus();
+	}
+	if (GAME_STATE.FocusBody != null) {
+		RETICLE.draw(ctx);
 	}
 
 	//console.log('updated...')
@@ -506,8 +592,9 @@ function main() {
 	createUI(ctx);
 	link2server();
 	GAME_STATE = new GameState();
+	RETICLE = new Reticle();
 	//console.log(GAME_STATE.KM2PIX);
-	setInterval(mainLoop, 1000);
+	setInterval(mainLoop, REFRESH_RATE);
 
 	/* TRIAL CODE 
 	var v = new vec2d(1,2);
