@@ -448,12 +448,13 @@ function updateCanvas(ctx) {
 }
 function draw_body(ctx, body, dia, middle_of_body) {
 	//ctx.moveTo(middle_of_body.x, middle_of_body.y);
+	color = array2para(body.Color);
 	ctx.beginPath();
 	ctx.rect(center_w - system_screen_w/2, center_h - system_screen_h/2 + system_screen_h_offset, system_screen_w, system_screen_h);
 	ctx.stroke(); ctx.closePath(); ctx.clip();
 	ctx.beginPath();
 	screenXY = vec2Screen(middle_of_body);
-	ctx.fillStyle = 'rgb(255,255,0)'; //body.Color;
+	ctx.fillStyle = color;
 	ctx.arc(screenXY[0], screenXY[1], dia/2, 0, 2*Math.PI);
 	ctx.fill(); ctx.closePath();
 }
