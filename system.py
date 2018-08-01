@@ -3,7 +3,7 @@ import json, os, math
 from collections import OrderedDict
 import numpy as np
 from BackEndData import NAMESPACE, G
-from Body import Body
+from Body import *
 
 try:
     unicode = unicode
@@ -32,7 +32,7 @@ class System():
 				if "color" in tree[key]:
 					color = self._evalExpr(tree[key]["color"])
 				else:
-					color = self._evalExpr("WHITE")
+					color = self._evalExpr("BGCOLOR")
 				if "vel" in tree[key]:
 					vel = [0, self._evalExpr(tree[key]["vel"])+parent.Velocity[1]]
 				elif parent:
@@ -60,7 +60,7 @@ class System():
 		for req in System.requiredWords:
 			if req not in tree:
 				#raise NameError("Body "+name+" has no "+req+" field.")
-				print("Error: Body "+name+" has no "+req+" field. This body will not be added to the system.")
+				print("Error: Body "+name+" does not have all "+req+" fields. This body will not be added to the system.")
 				return False
 		return True
 
@@ -72,7 +72,6 @@ class System():
 
 	def getRoots(self):
 		return self._roots
-
 
 
 if __name__ == "__main__":

@@ -45,6 +45,9 @@ def main():
 
 	# INITIALIZE ALL BODIES
 	initialize_bodies()
+
+	# INITIALIZE PLAYER
+	initPlayer()
 	
 	# FOCUS ON FIRST ROOT
 	FocusBody = ALL_BODIES.getRoots()[0]
@@ -64,11 +67,15 @@ def main():
 		for event in pygame.event.get():
 			# EXIT CONDITION
 			if event.type == QUIT:
-				pygame.quit()
-				sys.exit()
+				terminate()
+
 				
 			# KEY INPUT LOOP
 			elif event.type == KEYDOWN:
+
+				# OTHER EXIT CONDITION
+				if (event.key == K_ESCAPE):
+					terminate()
 				
 			   ## ZOOM INPUT ##
 				if event.key == K_SLASH:
@@ -96,22 +103,27 @@ def main():
 
 
 				## MAP / FOCUS KEY INPUT ##
-				# KEY UP            
-				if event.key == K_UP:
+				# KEY W = UP           
+				if event.key == K_w:
 					if FocusBody.getParent():
 						# ZOOM OUT
 						#KM2PIX = zoomOut(KM2PIX)
 						# UPDATE MAP AND INDEX
-						MAP_INDEX = PREV_MAP_INDEX[-1]
+						if (PREV_MAP_INDEX):
+							MAP_INDEX = PREV_MAP_INDEX[-1]
+						else:
+							MAP_INDEX = 1
 						FocusBody = FocusBody.getParent()
 						if not FocusBody.getParent():
 							siblings = (ALL_BODIES.getRoots())
 							PREV_MAP_INDEX = []
 						else:
 							siblings = [FocusBody.getParent()] + FocusBody.getParent().getChildren()
-							del PREV_MAP_INDEX[-1]
-				# KEY DOWN
-				elif event.key == K_DOWN:
+							if (PREV_MAP_INDEX):
+								del PREV_MAP_INDEX[-1]
+
+				# KEY S = DOWN
+				elif event.key == K_s:
 					if len(FocusBody.getChildren()) > 0:
 						# ZOOM IN
 						#KM2PIX = zoomIn(KM2PIX)
@@ -124,15 +136,44 @@ def main():
 						else:
 							siblings = [FocusBody.getParent()] + FocusBody.getParent().getChildren()
 
-				# KEY RIGHT
-				elif event.key == K_RIGHT:
+				# KEY D = RIGHT
+				elif event.key == K_d:
 					MAP_INDEX = (MAP_INDEX+1)%len(siblings)
 					FocusBody = siblings[MAP_INDEX]
 
-				# KEY LEFT
-				elif event.key == K_LEFT:
+				# KEY A = LEFT
+				elif event.key == K_a:
 					MAP_INDEX = (MAP_INDEX-1)%len(siblings)
 					FocusBody = siblings[MAP_INDEX]
+
+				# CHANGE FOCUS BETWEEN PLAYER AND OBJECTS(PLANETS)
+				# ---------------- NEEDS TO BE FLESHED OUT FOR PROPER GUI DISPLAY
+				elif event.key == K_p:
+					if (len(siblings) > 0 and FocusBody == siblings[MAP_INDEX]):
+						FocusBody = PLAYER_OBJECTS.getRoots()[0]
+					else:
+						FocusBody = siblings[MAP_INDEX]
+
+				## PLAYER ACTIONS ##
+				# ROTATE LEFT
+				elif event.key == K_RIGHT:
+					PLAYER_OBJECTS.getRoots()[0].changeAngle(-5)
+				# ROTATE RIGHT
+				elif event.key == K_LEFT:
+					PLAYER_OBJECTS.getRoots()[0].changeAngle(5)
+				# ADD THRUST
+				elif event.key == K_UP:
+					PLAYER_OBJECTS.getRoots()[0].changeThrust(0.01)	# THRUST IS IN KM/SS
+					print(PLAYER_OBJECTS.getRoots()[0].Thrust)
+				# DECREASE THRUST
+				elif event.key == K_DOWN:
+					if (PLAYER_OBJECTS.getRoots()[0].Thrust > 0):
+						PLAYER_OBJECTS.getRoots()[0].changeThrust(-0.01)
+					print(PLAYER_OBJECTS.getRoots()[0].Thrust)
+
+
+
+
 
 
 		### RUNNING PHYSICS ENGINE ###
@@ -225,16 +266,16 @@ def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings, BasicFo
 
 
 	# INSTRUCTION TEXT (English)
-	Inst1txt = LargerBasicFont.render('Arrow keys to change between objects', True, FONT_COLOR)
-	DISPLAYSURF.blit(Inst1txt, (12, SURF_HEIGHT/6))
-	Inst2txt = LargerBasicFont.render('Zoom In  . (period)', True, FONT_COLOR)
-	DISPLAYSURF.blit(Inst2txt, (12, SURF_HEIGHT/6 + 20))
-	Inst2_1txt = LargerBasicFont.render('Zoom Out  / (forward slash)', True, FONT_COLOR)
-	DISPLAYSURF.blit(Inst2_1txt, (12, SURF_HEIGHT/6 + 40))
-	Inst3txt = LargerBasicFont.render('Speed Up  ] (right bracket)', True, FONT_COLOR)
-	DISPLAYSURF.blit(Inst3txt, (12, SURF_HEIGHT/6 + 60))
-	Inst4txt = LargerBasicFont.render('Speed Down  [ (left bracsket)', True, FONT_COLOR)
-	DISPLAYSURF.blit(Inst4txt, (12, SURF_HEIGHT/6 + 80))
+	instruction_texts = [	'WASD keys to change between objects',
+							'P to zoom directly to player'
+							'Arrow keys to rotate player',
+							'Zoom In  . (period)',
+							'Zoom Out  / (forward slash)',
+							'Speed Up  ] (right bracket)',
+							'Speed Down  [ (left bracsket)']
+	for x in range(0, len(instruction_texts)):
+		txt = LargerBasicFont.render(instruction_texts[x], True, FONT_COLOR)
+		DISPLAYSURF.blit(txt, (11, SURF_HEIGHT/6 + (x*20)))
 
 
 	# RETICLE
@@ -252,16 +293,6 @@ def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings, BasicFo
 	mapDisplay(FocusBody, BasicFont, siblings)
 
 
-# ==================================================
-# RENDERER
-# Handles:
-#   - Iterating through all Stars, Planets, Moons and Calling Display Function
-#   - Zoom
-#   - Conversion of km to pixels
-def Renderer(KM2PIX, Focus, SOI):
-
-	for body in ALL_BODIES:
-		display(body, KM2PIX, Focus, SOI)
 
 
 # ==================================================
@@ -270,14 +301,22 @@ def Renderer(KM2PIX, Focus, SOI):
 #   - Updating Velocity and Position of All Stars, Planets, Moons
 def PhysicsEngine(TIME_SCALAR):
 
+	### BODY PHYSICS ENGINE ###
+
 	for bodyA in ALL_BODIES:
 
 		# ONLY CALCULATE IF :
 		#   - IT ORBITS PARENT
 		#   - bodyB IS A STAR
 		#   GOT RID OF -> IS ON SAME LEVEL AS OTHER CHILDREN <- REQUIREMENT, IS USELESS AND SOI PROVES IT
+		# 	GOT RID OF INCLUDING PLANETS ON NBODY CALCS FOR MOONS AND OTHER PLANETS
+
+		if (bodyA.Name == "Player 1"):
+			print("ERROR... PLAYER NBODY CALC IS HAPPENING TWICE")
+
+		# need to check if player is in this list?
 		for bodyB in ALL_BODIES:
-			if bodyB != bodyA and (bodyB in ALL_BODIES.getRoots() or bodyB == bodyA.Parent):
+			if bodyB != bodyA and (bodyB == ALL_BODIES.getRoots()[0] or bodyB == bodyA.Parent):
 				DistanceArray = bodyB.Position - bodyA.Position
 				Distance = np.linalg.norm(bodyB.Position - bodyA.Position)
 				angle = math.atan(DistanceArray[1]/DistanceArray[0])
@@ -289,20 +328,70 @@ def PhysicsEngine(TIME_SCALAR):
 					ForceX = math.cos(angle)*GForce[0]
 					ForceY = math.sin(angle)*GForce[0]
 
-				bodyA.Velocity = bodyA.Velocity + np.array([ForceX,ForceY])
+				bodyA.Velocity += np.array([ForceX,ForceY])
 
+
+
+
+	### PLAYER PHYSICS ENGINE ###
+
+	for bodyA in PLAYER_OBJECTS:
+		# 	ONLY DO NBODY CALCS ON PLANET PLAYER ORBITS AND ROOT OF SYSTEM (SUN)
+		calcObjects = [bodyA.Parent, ALL_BODIES.getRoots()[0]]
+		for bodyB in calcObjects:
+			DistanceArray = bodyB.Position - bodyA.Position
+			Distance = np.linalg.norm(bodyB.Position - bodyA.Position)
+			angle = math.atan(DistanceArray[1]/DistanceArray[0])
+			GForce = TIME_SCALAR*G*bodyB.Mass[0]/(Distance*Distance)
+			if bodyA.Position[0] > bodyB.Position[0]:
+				ForceX = -math.cos(angle)*GForce[0]
+				ForceY = -math.sin(angle)*GForce[0]
+			else:
+				ForceX = math.cos(angle)*GForce[0]
+				ForceY = math.sin(angle)*GForce[0]
+
+			ForceX += math.sin(bodyA.Angle*TORAD)*bodyA.Thrust
+			ForceY -= math.cos(bodyA.Angle*TORAD)*bodyA.Thrust
+
+			bodyA.Velocity += np.array([ForceX,ForceY])
+
+
+
+
+	## PUSH NEW POSITIONS
 
 	for body in ALL_BODIES:
-		body.Position = body.Position + TIME_SCALAR*body.Velocity
+		body.Position += TIME_SCALAR*body.Velocity
+	for player in PLAYER_OBJECTS:
+		player.Position += TIME_SCALAR*player.Velocity 
 
 
-# DISPLAY
+# ==================================================
+# RENDERER
+# Handles:
+#   - Iterating through all Stars, Planets, Moons and Calling Display Function
+#   - Zoom
+#   - Conversion of km to pixels
+def Renderer(KM2PIX, Focus, SOI):
+
+	for body in ALL_BODIES:
+		display(body, KM2PIX, Focus, SOI)
+
+	#for obj in ALL_OBJECTS:
+	#	display_Ojects(obj, KM2PIX, Focus)
+
+	for player in PLAYER_OBJECTS:
+		display_Player(player, KM2PIX, Focus)
+
+
+
+# DISPLAY (for non-character/player bodies only)
 def display(self, KM2PIX, Focus, SOI):
 	MiddlePoint = KM2PIX*(self.Position - Focus)
 	CheckXAxis = -(SURF_WIDTH + self.Diameter*KM2PIX)/2 < MiddlePoint[0] < (SURF_WIDTH + self.Diameter*KM2PIX)/2
 	CheckYAxis = -(SURF_HEIGHT + self.Diameter*KM2PIX)/2 < MiddlePoint[1] < (SURF_HEIGHT + self.Diameter*KM2PIX)/2
 
-	# ENABLING DISSAPPEARING PLANETS
+	# ENABLING DISSAPPEARING BODIES
 	# pixelSize = KM2PIX*self.Diameter/2
 	# if CheckXAxis and CheckYAxis and pixelSize > 0.5
 	if CheckXAxis and CheckYAxis:
@@ -310,6 +399,22 @@ def display(self, KM2PIX, Focus, SOI):
 		
 		if SOI and self.SOI != None and self.SOI*KM2PIX > 1 and self.SOI*KM2PIX < SURF_WIDTH:
 			pygame.draw.circle(DISPLAYSURF, FONT_COLOR, (int(MiddlePoint[0] + SURF_WIDTH/2),int(SURF_HEIGHT/2 - MiddlePoint[1])), int(self.SOI*KM2PIX), 1)
+
+
+def display_Player(self, KM2PIX, Focus):
+	MiddlePoint = KM2PIX*(self.Position - Focus)
+	CheckXAxis = -(SURF_WIDTH + self.Diameter*KM2PIX)/2 < MiddlePoint[0] < (SURF_WIDTH + self.Diameter*KM2PIX)/2
+	CheckYAxis = -(SURF_HEIGHT + self.Diameter*KM2PIX)/2 < MiddlePoint[1] < (SURF_HEIGHT + self.Diameter*KM2PIX)/2
+
+	if CheckXAxis and CheckYAxis:
+		draw_angle = self.Angle + 180
+		img = pygame.transform.rotate(self.Image, draw_angle)
+		DISPLAYSURF.blit(img, objectPos2ScreenXY(MiddlePoint))
+
+
+def objectPos2ScreenXY(MiddlePoint):
+	return [int(MiddlePoint[0] + SURF_WIDTH/2),int(SURF_HEIGHT/2 - MiddlePoint[1])]
+
 
 
  
@@ -326,6 +431,29 @@ def initialize_bodies():
 	filename = 'solar.json'
 	path = resource_path(os.path.join('resources',filename))
 	ALL_BODIES = System(path)
+
+def initPlayer():
+	print()
+	print("Players created...")
+
+	global PLAYER_OBJECTS
+	path = resource_path(os.path.join('resources', 'player.json'))
+	PLAYER_OBJECTS = System(path)
+	player1 = PLAYER_OBJECTS.getRoots()[0]
+	path = resource_path(os.path.join('resources', 'ghopper.jpg'))
+	ghopper_img = load_image(path)
+	player1.attachImage(ghopper_img)
+	player1.addPlayerAttribs()
+	Earth = ALL_BODIES["Earth"]
+	player1.attachToBody(Earth)
+
+def load_image(path):
+	"loads an image, prepares it for play"
+	try:
+		surface = pygame.image.load(path)
+	except pygame.error:
+		raise SystemExit('Could not load image "%s" %s'%(path, pygame.get_error()))
+	return surface.convert()
 
 
 
@@ -440,7 +568,11 @@ def zoomOut(KM2PIX):
 	return KM2PIX
 
 
+def terminate():
+	pygame.quit()
+	sys.exit()
 
 
 # CALLING THE PROGRAM
-main()
+if __name__ == '__main__':
+	main()
