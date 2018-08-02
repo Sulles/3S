@@ -37,7 +37,7 @@ Save the final.js doc (found within /js) to your "js" folder
 
 ->index.html
 
-->"js"
+>Folder "js"
 
 -->final.js
 
