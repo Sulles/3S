@@ -1,6 +1,9 @@
 /* =============================================================
 		INITIALIZING GLOBAL VARIABLES AND FUNCTIONS
 ==============================================================*/
+
+ALLOW_PIXEL_MINIMUM_DISPLAY = true;
+
 // Colors
 /*
 COLORS = {	'LIGHTGRAY': 	'rgb(175, 175, 175)',
@@ -26,7 +29,7 @@ COLORS = {	'LIGHTGRAY': 	'rgb(175, 175, 175)',
 			'BGCOLOR': 		'rgb(  0,   0,   0)'}
 */
 // Server Connection
-var Connection = new WebSocket('ws://localhost:6789/');
+var Connection = new WebSocket('ws://192.168.8.101:6789/');
 // Bodies and Players
 var ALL_BODIES = [];
 var ALL_PLAYERS = [];
@@ -120,24 +123,33 @@ vec2d.prototype.rotateAbout = function(origin, angle) {
 
 /* LINK TO SERVER, handles...
 	- Connection Errors
-	- Receiving Messages
+	- Closed Connection
+	- Receiving and Handling Messages
 */
 function link2server() {
 	// Log errors
 	Connection.onerror = function (error) {
 		console.log('WebSocket Error ' + error);
-
 	};
+	// On close
+	Connection.onclose = function () {
+		document.getElementById("numOfUsers").innerHTML = "ERROR: Connection to server lost...";
+		clearInterval(mainLoop); // <-- This doesn't work???
+	}
 
 	// Log messages from the server
 	Connection.onmessage = function (message) {
 		//console.log('Server: ' + message.data);
 		data = JSON.parse(message.data);
+		//sleep(50);
 		switch (data.type) {
 			// Depending on Type of message, switch through appropriate action
+			case 'ping':
+				send_pong();
+				break;
 			case 'message':
 				console.log(data.txt)
-				document.getElementById("out").innerHTML = data.txt+"\n";
+				document.getElementById("out").innerHTML = data.txt+" \n";
 				break;
 			case 'users':
 				var usertext = (data.count.toString() + " user" + (data.count == 1 ? "" : "s"));
@@ -185,6 +197,24 @@ function send_start_timer() {
 function send_stop_timer() {
 	Connection.send(JSON.stringify({action: 'stop_timer'}));
 }
+function send_start_ping() {
+	Connection.send(JSON.stringify({action: 'send_ping'}));
+}
+function send_pong() {
+	Connection.send(JSON.stringify({action: 'pong'}));
+}
+
+
+// SLEEP FOR DELAY AND TEST PURPOSES
+
+function sleep(msec){
+	var start = new Date().getTime();
+	for (var i = 0; i < 1e7; i++){
+		if (new Date().getTime() - start > msec){
+			break;
+		}
+	}
+}
 
 
 
@@ -205,7 +235,9 @@ function createUI(ctx) {
 	draw_engi_butt(ctx, false);
 	draw_SystemDrawBoardBackground(ctx);
 }
+
 // UI AND BACKGROUNDS
+
 function fillBackground(ctx, color) {
 	ctx.fillStyle = color;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -254,7 +286,9 @@ function draw_ui_background(ctx) {
   	ctx.fillStyle = 'rgb(175, 175, 175)';
   	ctx.fill();
 }
+
 // BUTTONS
+
 function draw_map_butt(ctx, active) {
 	var color = 'rgba(0,0,0,0)';
 	if (active) {
@@ -338,16 +372,15 @@ function draw_behind_butts(ctx) {
   	ctx.fill();
 }
 
+// RETICLE
+
 var Reticle = function(){
 	this.center = new vec2d(0,0);
 	this.radius = 10;
 	this.theta = 0;
 }
 Reticle.prototype.draw = function(ctx) {
-	ctx.beginPath();
-	ctx.rect(center_w - system_screen_w/2, center_h - system_screen_h/2 + system_screen_h_offset, system_screen_w, system_screen_h);
-	ctx.stroke(); ctx.closePath(); ctx.clip();
-
+	makeSystemClip(ctx);
 	var scrnXY = vec2Screen(this.center);
 	var screenXY = new vec2d(scrnXY[0], scrnXY[1]);
 	rotate_ctx(ctx, this.theta);
@@ -364,9 +397,12 @@ Reticle.prototype.draw = function(ctx) {
 }
 Reticle.prototype.newFocus = function() {
 	this.center = (GAME_STATE.FocusBody.Position.subVec(GAME_STATE.Focus)).mult(GAME_STATE.KM2PIX);
-	this.radius = (GAME_STATE.FocusBody.Diameter/2)*GAME_STATE.KM2PIX;
+	this.radius = (GAME_STATE.FocusBody.Diameter/2)*GAME_STATE.KM2PIX + 1;
+	if (this.radius < 10) { this.radius = 5; }
 	this.theta = 0;
 }
+
+// CTX MODIFIERS
 
 function rotate_ctx(ctx, deg) {
 	ctx.save();
@@ -379,7 +415,8 @@ function unrotate_ctx(ctx, deg) {
 
 
 
-// MISCELLANEOUS ON CLICK FUNCTION
+// MISCELLANEOUS: ON CLICK FUNCTION
+
 function onClick(event) {
     var pos = new vec2d(event.clientX, event.clientY);
     var coords = "X coords: " + pos.x + ", Y coords: " + pos.y;
@@ -403,10 +440,25 @@ function onClick(event) {
 }
 
 
+/* =============================================================
+						PLANET INFO GUI
+==============================================================*/
+/* PLANET INFO GUI, handles...
+	- Displaying Info of Current Highlighted Object (GAME_STATE.FocusBody)
+	- Creating Map of Bodies
+*/
+function createPlanetInfoGUI(ctx) {
+	draw_planet_info_box(ct);
+	draw_planet_info_bg(ct);
+}
+
+
+
 
 /* =============================================================
 						GAME STATE
 ==============================================================*/
+
 /* GAME STATE, handles...
 	- Current Focus Object Index
 	- Scale/Zoom via KM2PIX
@@ -416,7 +468,7 @@ function onClick(event) {
 GameState = function() {
 	this.FocusBody = null;
 	this.Focus = new vec2d(0,0);
-	this.KM2PIX = 1/100;
+	this.KM2PIX = 1/5000000;
 	this.FocusUI_topLevel = [''];
 	this.FocusUI_currentLevel = [''];
 	this.FocusUI_bottomLevel = [''];
@@ -473,7 +525,6 @@ Body = function(data, indx) {
 	this.dAdt = data.dAdt;
 	this.Children = [];
 	this.Color = data.Color;
-	console.log(array2para(this.Color));
 	this.indx = ALL_BODIES.length;
 }
 Body.prototype.addParent = function(parent) {
@@ -500,10 +551,16 @@ function addBody(data) {
 /* =============================================================
 					BODY AND PLAYER DRAWING 
 ==============================================================*/
+function makeSystemClip(ctx){
+	ctx.beginPath();
+	ctx.rect(center_w - system_screen_w/2, center_h - system_screen_h/2 + system_screen_h_offset, system_screen_w, system_screen_h);
+	ctx.stroke(); ctx.closePath(); ctx.clip();
+}
 function clear_System_Canvas(ctx) {
 	ctx.fillStyle = 'rgb(0, 0, 0';
 	ctx.fillRect(center_w - system_screen_w/2, center_h - system_screen_h/2 + system_screen_h_offset, system_screen_w,system_screen_h);
 }
+
 /* UPDATE SYSTEM DRAW BOARD, handles...
 	- Checking if Body is within System Draw Board bounds
 	- Sends info to draw function
@@ -519,7 +576,7 @@ function update_System_Canvas(ctx) {
 			CheckYAxis1 = -(system_screen_h + ALL_BODIES[x].Diameter*GAME_STATE.KM2PIX)/2 < middle_of_body.y; 
 			CheckYAxis2 = middle_of_body.y < (system_screen_h + ALL_BODIES[x].Diameter*GAME_STATE.KM2PIX)/2;
 			if (CheckXAxis1 && CheckXAxis2 && CheckYAxis1 && CheckYAxis2){
-				console.log("Showing: " + ALL_BODIES[x].Name + " Position is: " + middle_of_body.x + ", " +middle_of_body.y);
+				//console.log("Showing: " + ALL_BODIES[x].Name + " Position is: " + middle_of_body.x + ", " +middle_of_body.y);
 				draw_body(ctx, ALL_BODIES[x], dia, middle_of_body);
 			}
 		}
@@ -527,23 +584,18 @@ function update_System_Canvas(ctx) {
 	else { console.log("ERROR: No Bodies to Display"); }
 }
 function draw_body(ctx, body, dia, middle_of_body) {
-	//ctx.moveTo(middle_of_body.x, middle_of_body.y);
+	makeSystemClip(ctx); 
 	color = array2para(body.Color);
 	ctx.beginPath();
-	ctx.rect(center_w - system_screen_w/2, center_h - system_screen_h/2 + system_screen_h_offset, system_screen_w, system_screen_h);
-	ctx.stroke(); ctx.closePath(); ctx.clip();
-	ctx.beginPath();
-	screenXY = vec2Screen(middle_of_body);
-	ctx.fillStyle = color;
-	ctx.arc(screenXY[0], screenXY[1], dia/2, 0, 2*Math.PI);
+		screenXY = vec2Screen(middle_of_body);
+		ctx.fillStyle = color;
+	if (dia < 1 && ALLOW_PIXEL_MINIMUM_DISPLAY){ ctx.arc(screenXY[0], screenXY[1], 0.51, 0, 2*Math.PI); }
+	else { ctx.arc(screenXY[0], screenXY[1], dia/2, 0, 2*Math.PI); }
 	ctx.fill(); ctx.closePath();
 }
 function vec2Screen(vec) {
 	return [center_w + vec.x, center_h + vec.y + system_screen_h_offset];
 }
-//return [int(MiddlePoint[0] + SURF_WIDTH/2),int(SURF_HEIGHT/2 - MiddlePoint[1])]
-
-
 
 
 /* =============================================================
@@ -564,7 +616,7 @@ function mainLoop() {
 	update_System_Canvas(ctx);
 
 	if (ALL_BODIES.length > 0 && GAME_STATE.FocusBody == null) {
-		GAME_STATE.changeFocusBody(5);
+		GAME_STATE.changeFocusBody(0);
 		GAME_STATE.updateFocus();
 		RETICLE.newFocus();
 	}
