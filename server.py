@@ -8,6 +8,7 @@ logging.basicConfig()
 USERS = set()
 PULSES = []
 PULSES_Client_Index = []
+PING = []; PONG = []; PINGPONG = []; MAX_PING_TIME = 1000
 
 
 # ==================================================
@@ -44,13 +45,17 @@ async def send_body_info(name, dia, pos, vel, e, isCircular, a, b, A, dAdt, pare
     if USERS:
         message = prep_body_info(name, dia, pos, vel, e, isCircular, a, b, A, dAdt, parent, color)
         await asyncio.wait([user.send(message) for user in USERS])
-async def tell_client(message):
+async def tell_clients(message):
     if USERS:
         message = json.dumps({'type': message})
         await asyncio.wait([user.send(message) for user in USERS])
-async def send_user(user, message):
+async def send_user_message(user, message):
     if USERS:
         message = json.dumps({'type': 'message', 'txt': message})
+        await asyncio.wait([user.send(message)])
+async def send_user_ping(user):
+    if USERS:
+        message = json.dumps({'type': 'ping'})
         await asyncio.wait([user.send(message)])
 async def send_user_pulse_delay(user, delay):
     if USERS:
@@ -77,9 +82,13 @@ async def main(websocket, path):
             elif data['action'] == 'start_game' and len(USERS) > 1:
                 await startGame()
             elif data['action'] == 'start_timer':
-                await tell_client('start_timer')
+                await tell_clients('start_timer')
             elif data['action'] == 'stop_timer':
-                await tell_client('stop_timer')
+                await tell_clients('stop_timer')
+            elif data['action'] == 'send_ping':
+                await doPing()
+            elif data['action'] == 'pong':
+                await updatePong(websocket)
             elif data['action'] == 'pulse':
                 time = str(datetime.now().strftime('%H:%M:%S'))
                 addPulse(time, websocket)
@@ -94,6 +103,64 @@ async def main(websocket, path):
         await unregister(websocket)
 
 # ==================================================
+# Ping
+async def doPing():
+    if (len(PINGPONG) == 0):
+        print("Analyzing Pings...")
+        await send_all_users("Analyzing Pings...")
+        global START_PING_TIME
+        START_PING_TIME = getMilliSecTime()
+    for user in USERS:
+        startTime = getMilliSecTime()
+        PING.append([user, startTime])
+        await send_user_ping(user)
+# Update info of Ping time and link to User
+async def updatePong(user):
+    endTime = getMilliSecTime()
+    PONG.append([user, endTime])
+    if (len(PONG) == len(PING)):        # once all users have returned ping...
+        for x in range(0, len(PING)):   # match user to websocket address and add ping to PINGPONG
+            for z in range(0, len(PONG)):
+                if (PING[x][0] == PONG[z][0]):      # find same websocket address
+                    PINGPONG.append([PING[x][0], (PONG[z][1] - PING[x][1])])    # compare ping and pong time stamps
+        #for x in range(len(PINGPONG) - len(PING),len(PINGPONG)):
+        #    msg = 'Your ping is: ' + str(PINGPONG[x][1])
+        #    await send_user_message(PINGPONG[x][0], msg)
+        # Reset ping and pong after each user is pinged once
+        PING.clear(); PONG.clear();
+        # Repeat PingPong till we have N data points
+        N = 100
+        if (len(PINGPONG)%len(USERS) == 0 and getMilliSecTime() - START_PING_TIME > MAX_PING_TIME):
+            await analyzePingPong()
+            print("Ping analysis cut short, total pings analyzed: " + str(len(PINGPONG)/len(USERS)))
+            PINGPONG.clear()
+        elif (len(PINGPONG) / len(USERS) == N):
+            await analyzePingPong()
+            print("Pings Successfully Analyzed")
+            PINGPONG.clear()    # Clear PINGPONG for next run
+        elif (len(PINGPONG) / len(USERS) < N):
+            await doPing()
+
+async def analyzePingPong():
+    UserPings = [];
+    for user in USERS:
+        UserPings.append([user])
+    for x in range(0, len(PINGPONG)):
+        z = 0;
+        for user in USERS:
+            if (PINGPONG[x][0] == user):
+                UserPings[z].append(PINGPONG[x][1])
+            else: z += 1
+    for x in range(0,len(USERS)):
+        await send_user_message(UserPings[x][0], "Your Average Ping is: " + str(mean(UserPings[x][1:])))
+
+def mean(array):
+    return int(sum(array)/len(array))
+def getMilliSecTime():
+    return int(round(time.time()*1000))
+
+
+# ==================================================
 # Pulse Handler
 async def checkAndFixOffsets():
     maxP = max(PULSES)
@@ -102,10 +169,10 @@ async def checkAndFixOffsets():
     for x in range(0,len(PULSES)):
         if (PULSES[x] != 0):
             msg = "your pulse is off by " + str(abs(PULSES[x]))
-            await send_user(PULSES_Client_Index[x], msg)
+            await send_user_message(PULSES_Client_Index[x], msg)
             await send_user_pulse_delay(PULSES_Client_Index[x], abs(PULSES[x]))
         else:
-            await send_user(PULSES_Client_Index[x], '')
+            await send_user_message(PULSES_Client_Index[x], '')
     print("Max pulse difference among users: " + str(min(PULSES)))
 
 def addPulse(time, websocket):
@@ -209,5 +276,5 @@ def deNumpy(vec):
 
 
 asyncio.get_event_loop().run_until_complete(
-    websockets.serve(main, 'localhost', 6789))
+    websockets.serve(main, host='192.168.8.101', port=6789))
 asyncio.get_event_loop().run_forever()
