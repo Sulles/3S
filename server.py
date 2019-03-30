@@ -1,8 +1,14 @@
 #!/usr/bin/env python
-import asyncio, json, logging, websockets
-import math, numpy, sys, os, time   # time.sleep(millisecond input)
+import asyncio
+# import json
+import logging
+# import math
+import sys
+# import os
+import time   # time.sleep(millisecond input)
 from system import *
 from datetime import datetime
+import websockets
 
 logging.basicConfig()
 USERS = set()
