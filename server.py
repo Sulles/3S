@@ -317,6 +317,15 @@ def deNumpy(vec):
     return [vec[0], vec[1]]
 
 
-asyncio.get_event_loop().run_until_complete(
-    websockets.serve(main, host='192.168.8.101', port=6789))
-asyncio.get_event_loop().run_forever()
+address = '192.168.8.101'
+try:
+    asyncio.get_event_loop().run_until_complete(
+        websockets.serve(main, host=address, port=6789))
+    print("(=) SERVER STARTED")
+    asyncio.get_event_loop().run_forever()
+
+except Exception as e:
+    print("ERROR 001: Websockets could not establish a connection to " + address)
+
+finally:
+    print("(=) SERVER TERMINATED")
