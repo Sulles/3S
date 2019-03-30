@@ -15,8 +15,12 @@ PING = []; PONG = []; PINGPONG = []; MAX_PING_TIME = 1000
 ## MESSAGE PREPARERS
 def users_event():
     return json.dumps({'type': 'users', 'count': len(USERS)})
+
+
 def prep_user_msg(message):
     return json.dumps({'type': 'message', 'txt': message})
+
+
 def prep_body_info(name, dia, pos, vel, e, isCircular, a, b, A, dAdt, parent, color):
     return json.dumps({'type': 'body',  'Name': name,
                                         'Diameter': dia,
@@ -32,44 +36,64 @@ def prep_body_info(name, dia, pos, vel, e, isCircular, a, b, A, dAdt, parent, co
                                         'Color': color})
 
 # ==================================================
-## MESSAGE SENDERS
+# MESSAGE SENDERS
+
+
 async def update_user_numbers():
     if USERS:       # asyncio.wait doesn't accept an empty list
         message = users_event()
         await asyncio.wait([user.send(message) for user in USERS])
+
+
 async def send_all_users(message):
     if USERS:
         message = prep_user_msg(message)
         await asyncio.wait([user.send(message) for user in USERS])
+
+
 async def send_body_info(name, dia, pos, vel, e, isCircular, a, b, A, dAdt, parent, color):
     if USERS:
         message = prep_body_info(name, dia, pos, vel, e, isCircular, a, b, A, dAdt, parent, color)
         await asyncio.wait([user.send(message) for user in USERS])
+
+
 async def tell_clients(message):
     if USERS:
         message = json.dumps({'type': message})
         await asyncio.wait([user.send(message) for user in USERS])
+
+
 async def send_user_message(user, message):
     if USERS:
         message = json.dumps({'type': 'message', 'txt': message})
         await asyncio.wait([user.send(message)])
+
+
 async def send_user_ping(user):
     if USERS:
         message = json.dumps({'type': 'ping'})
         await asyncio.wait([user.send(message)])
+
+
 async def send_user_pulse_delay(user, delay):
     if USERS:
         message = json.dumps({'type': 'pulse_delay', 'delay': delay})
         await asyncio.wait([user.send(message)])
 
+
 # ==================================================
-## CLIENT/SYSTEM REGISTRATION
+# CLIENT/SYSTEM REGISTRATION
+
 async def register(websocket):
     USERS.add(websocket)
     await update_user_numbers()
+
+
 async def unregister(websocket):
     USERS.remove(websocket)
     await update_user_numbers()
+
+
 async def main(websocket, path):
     # register(websocket) sends user_event() to websocket
     await register(websocket)
@@ -102,8 +126,10 @@ async def main(websocket, path):
     finally:
         await unregister(websocket)
 
+
 # ==================================================
 # Ping
+
 async def doPing():
     if (len(PINGPONG) == 0):
         print("Analyzing Pings...")
@@ -115,7 +141,9 @@ async def doPing():
         PING.append([user, startTime])
         await send_user_ping(user)
 # Update info of Ping time and link to User
-async def updatePong(user):
+
+
+async def updatePong (user):
     endTime = getMilliSecTime()
     PONG.append([user, endTime])
     if (len(PONG) == len(PING)):        # once all users have returned ping...
@@ -141,8 +169,9 @@ async def updatePong(user):
         elif (len(PINGPONG) / len(USERS) < N):
             await doPing()
 
+
 async def analyzePingPong():
-    UserPings = [];
+    UserPings = []
     for user in USERS:
         UserPings.append([user])
     for x in range(0, len(PINGPONG)):
@@ -154,14 +183,18 @@ async def analyzePingPong():
     for x in range(0,len(USERS)):
         await send_user_message(UserPings[x][0], "Your Average Ping is: " + str(mean(UserPings[x][1:])))
 
+
 def mean(array):
     return int(sum(array)/len(array))
+
+
 def getMilliSecTime():
     return int(round(time.time()*1000))
 
 
 # ==================================================
 # Pulse Handler
+
 async def checkAndFixOffsets():
     maxP = max(PULSES)
     for x in range(0,len(PULSES)):
@@ -175,6 +208,7 @@ async def checkAndFixOffsets():
             await send_user_message(PULSES_Client_Index[x], '')
     print("Max pulse difference among users: " + str(min(PULSES)))
 
+
 def addPulse(time, websocket):
     t = int(time[6:8])
     t += int(time[3:5])*60
@@ -183,11 +217,13 @@ def addPulse(time, websocket):
     PULSES.append(t)
     PULSES_Client_Index.append(websocket)
 
+
 # ==================================================
 # Start Game handles:
 #   - Creating system
 #   - Sending system info to clients
 #   - Checking consistency of all body properties between clients
+
 async def startGame():
     await send_all_users('Game is Beginning, Spawning the Solar System...')
     initialize_bodies()
@@ -196,6 +232,7 @@ async def startGame():
     await sendClientsBodies()
     await send_all_users('Ellipse Drive Ready!')
     #await startPulseLoop()
+
 
 async def sendClientsBodies():
     for body in ALL_BODIES:
@@ -210,6 +247,7 @@ async def sendClientsBodies():
             print(str(body.Name) + " has an exceptional, and unaccounted for e: " + str(body.e))
         await send_body_info(name, dia, pos, vel, e, isCircular, a, b, A, dAdt, parent, color)
 
+
 def initialize_bodies():
     global ALL_BODIES
     filename = 'solar.json'
@@ -217,10 +255,12 @@ def initialize_bodies():
     ALL_BODIES = System(path)
     print("System Initialized")
 
+
 # ==================================================
 # Spooling the Ellipse Drive :
 #   - Run the physics engine a few times and enable position 2 past accumulation
 #   - Calculate dA/dt, necessary for the Ellipse Drive
+
 def spoolEllipseDrive():
     # Spool steps times, the larger the number, the better the end results should be...
     steps  = 100
@@ -236,6 +276,7 @@ def spoolEllipseDrive():
         else:
             print("WARNING: " + str(body.Name) + " WILL NOT PARTICIPATE IN THE ELLIPSE DRIVE")
     print("Ellipse Drive Spooled")
+
 
 def ClassicalPhysicsEngine(bodyA, TIME_SCALAR):
 ### BODY PHYSICS ENGINE ###
@@ -268,6 +309,7 @@ def resource_path(relative):
     if hasattr(sys, "_MEIPASS"):
         return os.path.join(sys._MEIPASS, relative)
     return os.path.join(relative)
+
 
 # MAKING JSON APPROPRIATE
 def deNumpy(vec):
