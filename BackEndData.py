@@ -11,6 +11,7 @@ clrs = dict(
 	WHITE    = (255, 255, 255),
 	WHITERED = (255, 230, 230),
 	RED      = (255,   0,   0),
+	REDBROWN = ( 89,   0,   0),
 	PALERED  = (255,  75,  75),
 	GREEN    = (  0, 255,   0),
 	BLUE     = (  0,   0, 255),
@@ -36,6 +37,7 @@ BGCOLOR = (0,0,0)
 FONT_COLOR = (255,)*3
 GUI_COLOR = clrs["DARKGRAY"]
 TORAD = PI/180
+TODEG = 180/PI
 
 # CONSTANTS
 # 1Exagram = 10^18 Kg

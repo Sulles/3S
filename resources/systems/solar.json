@@ -8,13 +8,15 @@
 		"Mercury":{
 			"dia":"0.3829*EARTH_DIA",
 			"mass":"3.3011*10**5",
-			"rad":"0.45*AU"
+			"rad":"0.45*AU",
+			"color":"GRAY"
 		},
 
 		"Venus":{
 			"dia":"0.9499*EARTH_DIA",
 			"mass":"0.815*EARTH_MASS",
-			"rad":"0.723*AU"
+			"rad":"0.723*AU",
+			"color":"PALEYELLOW"
 		},
 
 		"Earth":{
@@ -40,13 +42,15 @@
 			"Phobos":{
 				"dia":"22.533",
 				"mass":"10.8*10**-3",
-				"rad":"9377"
+				"rad":"9377",
+				"color":"PHOBOSCLR"
 			},
 
 			"Deimos":{
 				"dia":"12.24",
 				"mass":"2*10**-3",
-				"rad":"23460"
+				"rad":"23460",
+				"color":"DEIMOSCLR"
 			}
 		},
 
@@ -61,6 +65,7 @@
 			"dia":"11.209*EARTH_DIA",
 			"mass":"317.8*EARTH_MASS",
 			"rad":"5.2*AU",
+			"color":"ORANGE",
 
 			"Io":{
 				"dia":"3643",

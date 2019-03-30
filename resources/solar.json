@@ -8,65 +8,80 @@
 		"Mercury":{
 			"dia":"0.3829*EARTH_DIA",
 			"mass":"3.3011*10**5",
-			"rad":"0.45*AU"
+			"rad":"-0.467*AU",
+			"color":"GRAY",
+			"e":0.2056
 		},
 
 		"Venus":{
 			"dia":"0.9499*EARTH_DIA",
 			"mass":"0.815*EARTH_MASS",
-			"rad":"0.723*AU"
+			"rad":"0.728*AU",
+			"color":"PALEYELLOW",
+			"e":0.007
 		},
 
 		"Earth":{
 			"dia":12742,
 			"mass":5.972e6,
-			"rad":"1*AU",
+			"rad":"-1.017*AU",
 			"color":"BLUE",
+			"e":0.0167,
 
 			"Moon":{
 				"dia":3473,
 				"mass":7.342e4,
-				"rad":384400,
-				"color":"LIGHTGRAY"
+				"rad":405400,
+				"color":"LIGHTGRAY",
+				"e":0.0549
 			}
 		},
 		
 		"Mars":{
 			"dia":6779,
 			"mass":6.417e5,
-			"rad":"1.521*AU",
+			"rad":"1.666*AU",
 			"color":"RED",
+			"e":0.0934,
 
 			"Phobos":{
 				"dia":"22.533",
 				"mass":"10.8*10**-3",
-				"rad":"9377"
+				"rad":"9518",
+				"color":"PHOBOSCLR",
+				"e":0.0151
 			},
 
 			"Deimos":{
 				"dia":"12.24",
 				"mass":"2*10**-3",
-				"rad":"23460"
+				"rad":"23471",
+				"color":"DEIMOSCLR",
+				"e":0
 			}
 		},
 
 		"Ceres":{
 			"dia":"473*2",
 			"mass":"9.393*10**2",
-			"rad":"2.767*AU",
-			"color":"WHITE"
+			"rad":"-2.977*AU",
+			"color":"WHITE",
+			"e":0.0758
 		},
 
 		"Jupiter":{
 			"dia":"11.209*EARTH_DIA",
 			"mass":"317.8*EARTH_MASS",
-			"rad":"5.2*AU",
+			"rad":"5.459*AU",
+			"color":"ORANGE",
+			"e":0.0484,
 
 			"Io":{
 				"dia":"3643",
 				"mass":"8.9*10**4",
 				"rad":"421700",
-				"color":"YELLOW"
+				"color":"YELLOW",
+				"e":0
 			},
 
 
@@ -74,7 +89,8 @@
 				"dia":"3122",
 				"mass":"4.8*10**4",
 				"rad":"671034",
-				"color":"BROWN"
+				"color":"BROWN",
+				"e":0
 			},
 
 
@@ -82,7 +98,8 @@
 				"dia":"5262",
 				"mass":"14.8*10**4",
 				"rad":"1070412",
-				"color":"DARKBROWN"
+				"color":"DARKBROWN",
+				"e":0
 			},
 
 
@@ -90,28 +107,32 @@
 				"dia":"4821",
 				"mass":"10.8*10**4",
 				"rad":"1882709",
-				"color":"DARKGRAY"
+				"color":"DARKGRAY",
+				"e":0
 			}
 		},
 
 		"Saturn":{
 			"dia":"9.44*EARTH_DIA",
 			"mass":"95.159*EARTH_MASS",
-			"rad":"9.5*AU",
+			"rad":"-10.124*AU",
 			"color":"PALEYELLOW",
+			"e":0.0541,
 			
 			"Rhea":{
 				"dia":"763.8",
 				"mass":"2.3065*10**4",
 				"rad":"527108",
-				"color":"WHITE"
+				"color":"WHITE",
+				"e":0
 			},
 
 			"Titan":{
 				"dia":"0.404*EARTH_DIA",
 				"mass":"0.0255*EARTH_MASS",
-				"rad":"1225000",
-				"color":"YELLOW"
+				"rad":"1257060",
+				"color":"YELLOW",
+				"e":0.0288
 			}
 			
 		},
@@ -119,14 +140,16 @@
 		"Uranus":{
 			"dia":"4*EARTH_DIA",
 			"mass":"14.536*EARTH_MASS",
-			"rad":"19.2*AU",
+			"rad":"20.11*AU",
 			"color":"PALEBLUE",
+			"e":0.0472,
 
 			"Miranda":{
 				"dia":"471.6",
 				"mass":"6.59*10**1",
 				"rad":"129390",
-				"color":"LIGHTGRAY"
+				"color":"LIGHTGRAY",
+				"e":0
 			},
 
 
@@ -134,7 +157,8 @@
 				"dia":"1157.8",
 				"mass":"1.353*10**3",
 				"rad":"190900",
-				"color":"PALEBLUE"
+				"color":"PALEBLUE",
+				"e":0
 			},
 
 
@@ -142,7 +166,8 @@
 				"dia":"0.092*EARTH_DIA",
 				"mass":"1.172*10**3",
 				"rad":"266000",
-				"color":"DARKGRAY"
+				"color":"DARKGRAY",
+				"e":0
 			},
 
 
@@ -150,7 +175,8 @@
 				"dia":"0.1235*EARTH_DIA",
 				"mass":"3.527*10**3",
 				"rad":"435910",
-				"color":"LIGHTGRAY"
+				"color":"LIGHTGRAY",
+				"e":0
 			},
 
 
@@ -158,37 +184,40 @@
 				"dia":"0.1194*EARTH_DIA",
 				"mass":"3.014*10**3",
 				"rad":"583520",
-				"color":"LIGHTGRAY"
+				"color":"LIGHTGRAY",
+				"e":0
 			}
 		},
 
 		"Neptune":{
 			"dia":"3.883*EARTH_DIA",
 			"mass":"17.147*EARTH_MASS",
-			"rad":"30*AU",
+			"rad":"-30*AU",
 			"color":"DARKBLUE",
+			"e":0,
 			
 			"Triton":{
 				"dia":"0.2122*EARTH_DIA",
 				"mass":"2.14*10**4",
-				"rad":"354759",
-				"vel":"-math.sqrt(G*((17.147*EARTH_MASS)**2)/(354759*(2.14*10**4 + 17.147*EARTH_MASS)))",
-				"color":"GRAY"
+				"rad":"-354759",
+				"color":"GRAY",
+				"e":0
 			}
 		},
 
 		"Pluto":{
 			"dia":"0.1868*EARTH_DIA",
 			"mass":"1.303*10**4",
-			"rad":"49.301*AU",
-			"vel":"math.sqrt(G*(SUN_MASS**2)/(39.4*AU*(1.303*10**4 + SUN_MASS)))",
+			"rad":"49.305*AU",
 			"color":"WHITERED",
+			"e":0.2488,
 			
 			"Charon":{
 				"dia":"606",
 				"mass":"1.586*10**3",
 				"rad":"17536",
-				"color":"WHITERED"
+				"color":"WHITERED",
+				"e":0
 			}
 		}
 	}

@@ -3,7 +3,8 @@ import json, os, math
 from collections import OrderedDict
 import numpy as np
 from BackEndData import NAMESPACE, G
-from Body import *
+from Body import Body
+from math import sqrt
 
 try:
     unicode = unicode
@@ -15,7 +16,7 @@ except NameError:
 
 class System():
 	requiredWords = ["dia", "mass", "rad"]
-	reservedWords = requiredWords + ["color", "avg_dia", "vel"]
+	reservedWords = requiredWords + ["color", "avg_dia", "vel", "e"]
 	def __init__(self, path):
 		self._index = {}
 		self._roots = []
@@ -29,22 +30,43 @@ class System():
 				dia = self._formatNumber(tree[key]["dia"])
 				mass = self._formatNumber(tree[key]["mass"])
 				rad = self._formatNumber(tree[key]["rad"])
+				r = abs(rad)
+				e = None
 				if "color" in tree[key]:
 					color = self._evalExpr(tree[key]["color"])
 				else:
+					print("NO COLOR DETECTED...")
 					color = self._evalExpr("BGCOLOR")
 				if "vel" in tree[key]:
 					vel = [0, self._evalExpr(tree[key]["vel"])+parent.Velocity[1]]
+				elif parent and "e" in tree[key]:
+					e = self._formatNumber(tree[key]["e"])
+					u = G*(mass + parent.Mass)
+					p = r*(1-e)
+					a = p/(1-e*e)
+					E = -u/(2*a)
+					v = sqrt(2*(E+u/r))
+					if (rad < 0):
+						vel = [0, -v + parent.Velocity[1]]
+					else:
+						vel = [0, v + parent.Velocity[1]]
 				elif parent:
-					vel = [0, math.sqrt(G*(parent.Mass**2)/(rad*(mass + parent.Mass)))+parent.Velocity[1]]
+					e = 0
+					v = sqrt(G*(parent.Mass**2)/(r*(mass + parent.Mass)))
+					if (rad < 0):
+						vel = [0, -v + parent.Velocity[1]]
+					else:
+						vel = [0, v + parent.Velocity[1]]
 				else:
 					vel = [0,0]
-				b = Body(key, parent, dia, mass, vel, rad, color)
+					parent = None
+				b = Body(key, parent, dia, mass, vel, rad, color, e)
 				self._index[key] = b
 				if not parent:
 					self._roots.append(b)
 				walk(tree[key], b)
 		walk(raw, None)
+
 
 	def _evalExpr(self, exp):
 		if isinstance(exp, basestring):

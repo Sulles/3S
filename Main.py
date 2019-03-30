@@ -4,7 +4,7 @@
 # STARTUP
 print('LOADING...')
 
-import pygame, math, sys, os
+import pygame, math, sys, os, random
 import numpy as np
 from pygame.locals import *
 from system import *
@@ -26,12 +26,13 @@ from BackEndData import *
 #   - Calling Renderer
 #   - Refreshing Display Window
 def main():
-	global FPSCLOCK, DISPLAYSURF
+	global FPSCLOCK, DISPLAYSURF, ENABLE_ELLIPSE_DRIVE, ALL_BODIES
 	TIME_SCALAR = 1
 	ACTUAL_SCALAR = 0
 	GOD_LOOP = int(1)
 	BASIC_LOOP = int(FPS+1)
 	BASIC_LOOP_COUNTER = int(1)
+	ENABLE_ELLIPSE_DRIVE = False
 	FPSCLOCK = pygame.time.Clock()
 	pygame.init()
 	DISPLAYSURF = pygame.display.set_mode((SURF_WIDTH, SURF_HEIGHT))
@@ -44,7 +45,7 @@ def main():
 	LargerBasicFont = pygame.font.Font(path, 16)
 
 	# INITIALIZE ALL BODIES
-	initialize_bodies()
+	ALL_BODIES = initialize_bodies()
 
 	# INITIALIZE PLAYER
 	initPlayer()
@@ -172,6 +173,20 @@ def main():
 					print(PLAYER_OBJECTS.getRoots()[0].Thrust)
 
 
+				## ENABLING ELLIPSE DRIVE
+				elif event.key == K_e:
+					spoolEllipseDrive()
+					#ENABLE_ELLIPSE_DRIVE = True
+				## JUMP ELLIPSE DRIVE
+				elif event.key == K_j:
+					#ENABLE_ELLIPSE_DRIVE = True
+					for body in ALL_BODIES:
+						if (body != ALL_BODIES.getRoots()[0]):
+							print(body.Name + " is jumping from angle: " + str(body.theta*TODEG))
+							EllipseDrive(body, 10)
+					#PhysicsEngine(10)
+					#ENABLE_ELLIPSE_DRIVE = False
+							
 
 
 
@@ -211,7 +226,7 @@ def main():
 		# RENDERING OBJECTS
 		DISPLAYSURF.fill(BGCOLOR)
 		Renderer(KM2PIX[0], Focus, SOI)
-		Sim_Speed = TIME_SCALAR*GOD_LOOP*(FPS+2-BASIC_LOOP) if ACTUAL_SCALAR == 0 else ACTUAL_SCALAR*GOD_LOOP*(FPS+2-BASIC_LOOP)
+		Sim_Speed = TIME_SCALAR*GOD_LOOP*(FPS+2-BASIC_LOOP) if ACTUAL_SCALAR == 0 else ACTUAL_SCALAR*GOD_LOOP*(FPS+2-BASIC_LOOP) # WTF ACTUALLY HAPPENED HERE
 		GUI(Sim_Speed, FocusBody, KM2PIX[0], FPSCLOCK, START_UPS_TIC, siblings, BasicFont, LargerBasicFont)
 
 		# UPDATE DISPLAY
@@ -220,6 +235,31 @@ def main():
 		# IF NOT GOING THROUGH THE LINEAR SCALE, STICK TO 60 FPS LIMIT
 		if ACTUAL_SCALAR == TIME_SCALAR or ACTUAL_SCALAR == 0:
 			FPSCLOCK.tick(FPS)
+
+
+
+# ==================================================
+# Spooling the Ellipse Drive :
+# 	- Run the physics engine a few times and enable position 2 past accumulation
+# 	- Calculate dA/dt, necessary for the Ellipse Drive
+def spoolEllipseDrive():
+	print(); print("Preparing Bodies for Ellipse Drive...")
+	# Spool steps times, the larger the number, the better the end results should be...
+	steps  = 100
+	TotalAnalysisTime = 1000			# keep TotalAnalysisTime large to avoid 0 area triangles
+	stepSize = int(TotalAnalysisTime/steps)
+	for x in range(0, TotalAnalysisTime, stepSize):
+		PhysicsEngine(stepSize)
+		for body in ALL_BODIES:
+			body.addPos2Past()
+	for body in ALL_BODIES:
+		if (body.e_ != None):
+			body.calculateEllipse(TotalAnalysisTime, stepSize)
+		else:
+			print("WARNING: " + str(body.Name) + " will not participate in the Ellipse Drive")
+
+	print(); print("ELLIPSE DRIVE READY"); print()
+
 
 
 # ==================================================
@@ -232,7 +272,6 @@ def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings, BasicFo
 
 	### INFORMATION GUI TOP LEFT ###
 	# BACKGROUND
-	#global BGCOLOR
 	pygame.draw.rect(DISPLAYSURF, GUI_COLOR, (10, 10, 120, 54), 0)
 	pygame.draw.rect(DISPLAYSURF, FONT_COLOR, (7, 7, 126, 60), 1)
 	pygame.draw.rect(DISPLAYSURF, FONT_COLOR, (4, 4, 132, 66), 1)
@@ -248,7 +287,7 @@ def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings, BasicFo
 	DISPLAYSURF.blit(SimSpeedText, (12, 24))
 
 	# KM2PIX TEXT
-	temp = 'Scale: %s' %KM2PIX
+	temp = 'Scale: %s' %np.round(KM2PIX,10)
 	ScaleText = BasicFont.render(temp, True, FONT_COLOR)
 	DISPLAYSURF.blit(ScaleText, (12, 36))
 
@@ -298,72 +337,119 @@ def GUI(Sim_Speed, FocusBody, KM2PIX, FPSCLOCK, START_UPS_TIC, siblings, BasicFo
 # ==================================================
 # PHYSICS ENGINE
 # Handles:
-#   - Updating Velocity and Position of All Stars, Planets, Moons
+#   - NBody Calculations
+#	- Ellipse Drive
 def PhysicsEngine(TIME_SCALAR):
+	for body in ALL_BODIES:
+		if ENABLE_ELLIPSE_DRIVE and body.e_ != None:
+			# RUN ELLIPSE DRIVE FOR ALL BODIES THAT HAVE IT
+			if (TIME_SCALAR <= 1):
+				print("ERROR: Time Scalar too low for Ellipse Drive")
+				ClassicalPhysicsEngine(body, TIME_SCALAR)
+			else:
+				currentTheta = getTheta(body.Position, body.Parent.Position)
+				print(currentTheta*TODEG)
+				EllipseDrive(body, TIME_SCALAR, currentTheta)
+		else:
+			# RUN NBODY CALCULATIONS
+			ClassicalPhysicsEngine(body, TIME_SCALAR)
 
-	### BODY PHYSICS ENGINE ###
+		#if (body.Name == "Phobos"):
+		#	print(getTheta(body.Position, body.Parent.Position)*TODEG)
 
-	for bodyA in ALL_BODIES:
+	# RUN PHYSICS ENGINE FOR PLAYERS
+	PlayerPhysicsEngine(TIME_SCALAR)
 
-		# ONLY CALCULATE IF :
-		#   - IT ORBITS PARENT
-		#   - bodyB IS A STAR
-		#   GOT RID OF -> IS ON SAME LEVEL AS OTHER CHILDREN <- REQUIREMENT, IS USELESS AND SOI PROVES IT
-		# 	GOT RID OF INCLUDING PLANETS ON NBODY CALCS FOR MOONS AND OTHER PLANETS
-
-		if (bodyA.Name == "Player 1"):
-			print("ERROR... PLAYER NBODY CALC IS HAPPENING TWICE")
-
-		# need to check if player is in this list?
-		for bodyB in ALL_BODIES:
-			if bodyB != bodyA and (bodyB == ALL_BODIES.getRoots()[0] or bodyB == bodyA.Parent):
-				DistanceArray = bodyB.Position - bodyA.Position
-				Distance = np.linalg.norm(bodyB.Position - bodyA.Position)
-				angle = math.atan(DistanceArray[1]/DistanceArray[0])
-				GForce = TIME_SCALAR*G*bodyB.Mass[0]/(Distance*Distance)
-				if bodyA.Position[0] > bodyB.Position[0]:
-					ForceX = -math.cos(angle)*GForce[0]
-					ForceY = -math.sin(angle)*GForce[0]
-				else:
-					ForceX = math.cos(angle)*GForce[0]
-					ForceY = math.sin(angle)*GForce[0]
-
-				bodyA.Velocity += np.array([ForceX,ForceY])
+	## PUSH NEW POSITIONS
+	for body in ALL_BODIES:
+		body.Position += TIME_SCALAR*body.Velocity
+		if (body.Parent != None):
+			body.recalcTheta()
+	for player in PLAYER_OBJECTS:
+		player.Position += TIME_SCALAR*player.Velocity
 
 
+def EllipseDrive(self, dt):
+    print(str(self.Name) + " jumping from " + str(self.theta*ToDeg)) # + " to...")
+    old_r = np.linalg.norm(self.Position - self.Parent.Position)
+    dTheta = self.a*self.b*self.n*dt/(old_r*old_r)
+    self.theta -= dTheta
+    if (self.theta > 2*math.pi):
+        self.theta -= 2*math.pi
+    if (self.CircularOrbit):
+        r = self.a
+    else:
+        r = (self.a*(1-self.e_*self.e_))/(1+self.e_*math.cos(self.theta))
+    pos = np.array([r*math.cos(self.theta), r*math.sin(self.theta)], dtype = np.float64) + self.Parent.Position
+    self.Position = self.format64(self.rotatePoint(self.Parent.Position, pos, self.angle)) #rotatePoint(self.getBarycenter(), pos, self.angle)
+    self.Acceleration = self.format64(vecSub(self.Velocity, self.PastVel)/dt)
+    v = math.sqrt(self.u*((2/r) - (1/self.a)))
+    if (self.h/(r*v) > 1):
+        print("Saved from a math error")
+        phi = 0
+    else:
+        phi = math.acos(self.h/(r*v))
+    self.Velocity = self.format64([v*math.cos(phi) + self.Parent.Velocity[0], v*math.sin(phi) + self.Parent.Velocity[1]])
+
+    #print(); print(str(self.Name) + " jumped " + str(dTheta*ToDeg) + " degrees")
+    #print(self.theta*ToDeg)
+
+    # remove first pos, keeps from creating a huge array
+    del self.PastPositions[:1]
+
+    self.addPos2Past()
 
 
-	### PLAYER PHYSICS ENGINE ###
+def ClassicalPhysicsEngine(bodyA, TIME_SCALAR):
+### BODY PHYSICS ENGINE ###
 
-	for bodyA in PLAYER_OBJECTS:
-		# 	ONLY DO NBODY CALCS ON PLANET PLAYER ORBITS AND ROOT OF SYSTEM (SUN)
-		calcObjects = [bodyA.Parent, ALL_BODIES.getRoots()[0]]
-		for bodyB in calcObjects:
+	# ONLY CALCULATE IF OTHER BODY IS ONE OF THE FOLLOWING...
+	#   - PARENT
+	#   - STAR
+	# 	- CHILD (ONLY FOR SUN)
+	for bodyB in ALL_BODIES:
+		if bodyB != bodyA and (bodyB == bodyA.Parent or bodyB == ALL_BODIES.getRoots()[0] or (bodyA == ALL_BODIES.getRoots()[0] and bodyB in bodyA.Children)):
+			#print(); print(bodyA.Name)
+			#print(">" + str(bodyB.Name))
 			DistanceArray = bodyB.Position - bodyA.Position
 			Distance = np.linalg.norm(bodyB.Position - bodyA.Position)
 			angle = math.atan(DistanceArray[1]/DistanceArray[0])
-			GForce = TIME_SCALAR*G*bodyB.Mass[0]/(Distance*Distance)
+			GForce = G*bodyB.Mass/(Distance*Distance)
 			if bodyA.Position[0] > bodyB.Position[0]:
 				ForceX = -math.cos(angle)*GForce[0]
 				ForceY = -math.sin(angle)*GForce[0]
 			else:
 				ForceX = math.cos(angle)*GForce[0]
 				ForceY = math.sin(angle)*GForce[0]
-
-			ForceX += math.sin(bodyA.Angle*TORAD)*bodyA.Thrust
-			ForceY -= math.cos(bodyA.Angle*TORAD)*bodyA.Thrust
-
-			bodyA.Velocity += np.array([ForceX,ForceY])
+			bodyA.Velocity += TIME_SCALAR*np.array([ForceX,ForceY])
 
 
+def PlayerPhysicsEngine(TIME_SCALAR):
+	### PLAYER PHYSICS ENGINE ###
 
-
-	## PUSH NEW POSITIONS
-
-	for body in ALL_BODIES:
-		body.Position += TIME_SCALAR*body.Velocity
-	for player in PLAYER_OBJECTS:
-		player.Position += TIME_SCALAR*player.Velocity 
+		for bodyA in PLAYER_OBJECTS:
+			# 	ONLY DO NBODY CALCS ON PARENT(S) OF PARENT
+			playerNBODs = []
+			obj = bodyA
+			#print("Nbod Calcs for Player " + str(player.indx) + " include...")
+			while obj != None:
+				if (obj.Name != "Player"):
+					playerNBODs.append(obj)
+				obj = obj.Parent
+			for bodyB in playerNBODs:
+				DistanceArray = bodyB.Position - bodyA.Position
+				Distance = np.linalg.norm(bodyB.Position - bodyA.Position)
+				angle = math.atan(DistanceArray[1]/DistanceArray[0])
+				GForce = G*(bodyB.Mass)/(Distance*Distance)
+				if bodyA.Position[0] > bodyB.Position[0]:
+					ForceX = -math.cos(angle)*GForce[0]
+					ForceY = -math.sin(angle)*GForce[0]
+				else:
+					ForceX = math.cos(angle)*GForce[0]
+					ForceY = math.sin(angle)*GForce[0]
+				ForceX += math.sin(bodyA.Angle*TORAD)*bodyA.Thrust
+				ForceY -= math.cos(bodyA.Angle*TORAD)*bodyA.Thrust
+				bodyA.Velocity += TIME_SCALAR*np.array([ForceX,ForceY])
 
 
 # ==================================================
@@ -375,6 +461,8 @@ def PhysicsEngine(TIME_SCALAR):
 def Renderer(KM2PIX, Focus, SOI):
 
 	for body in ALL_BODIES:
+		#if (ENABLE_ELLIPSE_DRIVE and body.e_ != None):
+		#	drawOrbit(body, KM2PIX, Focus)
 		display(body, KM2PIX, Focus, SOI)
 
 	#for obj in ALL_OBJECTS:
@@ -384,10 +472,79 @@ def Renderer(KM2PIX, Focus, SOI):
 		display_Player(player, KM2PIX, Focus)
 
 
+def drawOrbit(self, KM2PIX, Focus):
+	MiddlePoint = KM2PIX*(Focus - self.Parent.Position) 	# MiddlePoint = KM2PIX*(Focus - self.getBarycenter())
+	Diameter = max(abs(self.a), abs(self.b))
+	#print(self.Name)
+	#print(MiddlePoint)
+	try:
+		int(MiddlePoint[0])
+	except:
+		print("critical error")
+		print(str(self.Name) + " caused the critical error with an invalid MiddlePoint value of " + str(MiddlePoint))
+		print("Position: " + str(self.Position))
+		print("Velocity: " + str(self.Velocity))
+		print("PastPos: " + str(len(self.PastPositions)))
+		print("Focus: " + str(Focus))
+		print("Parent: " + str(self.Parent))
+		print("Parent Pos: " + str(self.Parent.Position))
+		print("Parent Vel: " + str(self.Parent.Velocity))
+		terminate()
+		
+
+	# Only show orbit if the body is in the frame
+	CheckXAxis = -(SURF_WIDTH + self.Diameter*KM2PIX)/2 < MiddlePoint[0] < (SURF_WIDTH + self.Diameter*KM2PIX)/2
+	CheckYAxis = -(SURF_HEIGHT + self.Diameter*KM2PIX)/2 < MiddlePoint[1] < (SURF_HEIGHT + self.Diameter*KM2PIX)/2
+
+	if CheckXAxis and CheckYAxis:
+		w = int(abs(2*self.a) * KM2PIX)
+		h = int(abs(2*self.b) * KM2PIX)
+		foci = self.Parent.Position 	# self.BaryCenter
+
+		if (self.CircularOrbit):
+			centerOfOrbit = KM2PIX * (foci - Focus)
+		else:
+			direcOfOrbit = self.e/self.e_
+			centerOfOrbit = vecAdd(foci, (self.rmin - self.a)*direcOfOrbit)
+			centerOfOrbit = KM2PIX * (centerOfOrbit - Focus)
+
+		maxX = w+2
+		displayX = DISPLAYSURF.get_size()[0]
+
+		if (maxX < 2*displayX):
+			drawEllipse(self,w,h,centerOfOrbit)
+		#else:
+		#	drawArc(self,w,h,centerOfOrbit)
+			
+
+def drawArc(self,w,h,centerOfOrbit):
+	print("Draw an Arc Now...")
+
+def drawEllipse(self,w,h,centerOfOrbit):
+		Rect = pygame.Rect((1,1), (w+1,h+1))
+		Surf = pygame.Surface((w+2,h+2))
+		#Surf.fill(GRAY)
+		Surf.set_alpha(100)
+		if (w > 1):
+			pygame.draw.ellipse(Surf, clrs['WHITE'], Rect, 1)
+			#pygame.draw.rect(Surf, clrs['WHITE'], Rect, 1)
+			Surf = pygame.transform.rotate(Surf, self.angle)
+			(sx, sy) = Surf.get_size()
+			#print([sx, sy])
+			topLeft = np.array([int(centerOfOrbit[0] - sx/2), int(centerOfOrbit[1] + sy/2)], dtype = np.float64)
+			DISPLAYSURF.blit(Surf, objectPos2ScreenXY(topLeft))
+
+def objectPos2ScreenXY(pos):
+	return [int(pos[0] + SURF_WIDTH/2), int(SURF_HEIGHT/2 - pos[1])]
 
 # DISPLAY (for non-character/player bodies only)
 def display(self, KM2PIX, Focus, SOI):
 	MiddlePoint = KM2PIX*(self.Position - Focus)
+	#print(self.Name)
+	#print(MiddlePoint)
+	if (MiddlePoint[0] == None):
+		print("critical error")
+		terminate()
 	CheckXAxis = -(SURF_WIDTH + self.Diameter*KM2PIX)/2 < MiddlePoint[0] < (SURF_WIDTH + self.Diameter*KM2PIX)/2
 	CheckYAxis = -(SURF_HEIGHT + self.Diameter*KM2PIX)/2 < MiddlePoint[1] < (SURF_HEIGHT + self.Diameter*KM2PIX)/2
 
@@ -398,7 +555,7 @@ def display(self, KM2PIX, Focus, SOI):
 		pygame.draw.circle(DISPLAYSURF, self.Color, (int(MiddlePoint[0] + SURF_WIDTH/2),int(SURF_HEIGHT/2 - MiddlePoint[1])), int(KM2PIX*(self.Diameter.round()/2)), 0)
 		
 		if SOI and self.SOI != None and self.SOI*KM2PIX > 1 and self.SOI*KM2PIX < SURF_WIDTH:
-			pygame.draw.circle(DISPLAYSURF, FONT_COLOR, (int(MiddlePoint[0] + SURF_WIDTH/2),int(SURF_HEIGHT/2 - MiddlePoint[1])), int(self.SOI*KM2PIX), 1)
+			pygame.draw.circle(DISPLAYSURF, FONT_COLOR, objectPos2ScreenXY(MiddlePoint), int(self.SOI*KM2PIX), 1)
 
 
 def display_Player(self, KM2PIX, Focus):
@@ -427,10 +584,10 @@ def initialize_bodies():
 	print()
 	print("List of Bodies Created...")
 
-	global ALL_BODIES
 	filename = 'solar.json'
 	path = resource_path(os.path.join('resources',filename))
-	ALL_BODIES = System(path)
+	all_bodies = System(path)
+	return all_bodies
 
 def initPlayer():
 	print()
@@ -444,8 +601,13 @@ def initPlayer():
 	ghopper_img = load_image(path)
 	player1.attachImage(ghopper_img)
 	player1.addPlayerAttribs()
-	Earth = ALL_BODIES["Earth"]
-	player1.attachToBody(Earth)
+	Body = randomBody()
+	player1.attachToBody(Body)
+
+def randomBody():
+	indx = int(len(ALL_BODIES.getRoots()[0].Children) * random.random())
+	print(indx)
+	return ALL_BODIES.getRoots()[0].Children[indx]
 
 def load_image(path):
 	"loads an image, prepares it for play"
@@ -559,7 +721,6 @@ def zoomIn(KM2PIX):
 	else:
 		KM2PIX *= 10
 	return KM2PIX
-
 def zoomOut(KM2PIX):
 	if KM2PIX <= 1/10:
 		KM2PIX /= 10
@@ -567,7 +728,28 @@ def zoomOut(KM2PIX):
 		KM2PIX /= 2
 	return KM2PIX
 
+# VECTOR MATH
+def vecAdd(vec1, vec2):
+    return np.array([vec1[0] + vec2[0], vec1[1] + vec2[1]])
+def vecSub(vec1, vec2):
+    return np.array([vec1[0] - vec2[0], vec1[1] - vec2[1]])
 
+# GET ANGLE FROM BODY TO PARENT
+def getTheta(pos, par_pos):
+    DistanceArray = vecSub(pos, par_pos)
+    #print(DistanceArray)
+    angle = math.atan(DistanceArray[1]/DistanceArray[0])
+    if (pos[0] > par_pos[0]):
+        return -angle
+    else:
+        return angle
+# Print Theta
+def printTheta(self):
+	theta = getTheta(self.Position, self.Parent.Position)
+	print(str(self.Name) + " is at angle " + str(getTheta(self.Position, self.Parent.Position)*TODEG))
+
+
+# TERMINATE/CLOSE
 def terminate():
 	pygame.quit()
 	sys.exit()
