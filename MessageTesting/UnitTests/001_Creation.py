@@ -25,6 +25,9 @@ try:
                                 str(msg_fields["data_start"]) + '"message_number": "' + str(_) + '" }'))
     end_time = (time()-start_time)*1000
     print(str(end_time) + " ms -OR- " + str(int(end_time*10000/32)/100) + "% of the budget")
+
+    # TODO: Go through all messages and ensure they are all unique
+    
     print("UNIT TEST 001 SUCCESSFUL")
 
 except Exception as e:
