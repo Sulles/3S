@@ -5,6 +5,8 @@ Updated:
 @author: Suleyman Barthe-Sukhera
 
 This Unit Test is meant to create multiple messages and ensure no data overlaps occur
+
+TODO: Look into NUMPY array allocation with objects in array
 """
 
 import sys
@@ -27,7 +29,7 @@ try:
     print(str(end_time) + " ms -OR- " + str(int(end_time*10000/32)/100) + "% of the budget")
 
     # TODO: Go through all messages and ensure they are all unique
-    
+
     print("UNIT TEST 001 SUCCESSFUL")
 
 except Exception as e:
