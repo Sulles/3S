@@ -15,18 +15,23 @@ Message object function: Contain 'MessageTypeIdentifier' and 'Data' attributes t
 """
 
 import json
+from copy import deepcopy
 
 
 class Message(object):
-    def __init__(self, identifier, data, status=1):
+    def __init__(self, identifier, data, status=1, spawn_point=[0, 0]):
         # assertion checks
-        assert isinstance(identifier, str), "ERROR: 0010 - Identifier not type: string"
-        assert isinstance(data, str), "ERROR: 0011 - Data not type: string"
-        assert isinstance(status, int), "ERROR: 0012 - Status not type: int"
+        assert isinstance(identifier, str), "ERROR: M001 - Identifier not type: string"
+        assert isinstance(data, str), "ERROR: M002 - Data not type: string"
+        assert isinstance(status, int), "ERROR: M003 - Status not type: int"
+        assert isinstance(spawn_point, list), "ERROR: M004 - Spawn point not type: list"
+        assert len(spawn_point) == 2, "ERROR: M004.1 - Spawn point not of length 2"
 
         self.__id = identifier
         self.__data = json.loads(data)
         self.__status = status
+        self.__spawn_point = spawn_point
+        self.__radius = 0
 
     # creates easily understandable string version of self
     def __str__(self):
@@ -36,10 +41,18 @@ class Message(object):
             for key in self.__data:
                 string = string + str("\n\t{" + key + ":\t" + self.__data[key] + "}")
         except Exception as e:
-            print("ERROR 0013 - Data not JSON compatible")
-            raise
+            raise ValueError("ERROR: M004 - Data not JSON compatible")
         finally:
             return string
+
+    # def __setattr__(self, key, value):
+    #     if value is None:
+    #         pass
+    #     elif key != "__Message_status":
+    #         raise ValueError("ERROR: M005 - Message attribute '" + str(key) + "' attempted to be modified!")
+    #     else:
+    #         pass
+
 
     def display(self):
         print(self.__str__())
@@ -56,8 +69,11 @@ class Message(object):
     def get_data_param(self, param):
         return self.__data[param]
 
+    def get_spawn_point(self):
+        return deepcopy(self.__spawn_point)
+
     def update_status(self, new_status):
-        assert isinstance(new_status, int), "ERROR: 0012 - Status not type: int"
+        assert isinstance(new_status, int), "ERROR: M003 - Status not type: int"
         self.__status = new_status
 
 
